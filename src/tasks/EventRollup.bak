@@ -1,0 +1,61 @@
+import { SWF } from 'aws-sdk'
+import { DecisionTask } from './DecisionTask'
+
+export type EventState = 'scheduled' | 'failedToSchedule' | 'started' | 'failed'
+| 'completed' | 'timedOut' | 'terminate'
+| 'toCancel' | 'canceling' | 'canceled' | 'cancelFailed'
+
+export const EventState = {
+  Scheduled: 'scheduled' as EventState,
+  FailedSchedule: 'failedToSchedule' as EventState,
+  Started: 'started' as EventState,
+  Failed: 'failed' as EventState,
+  Completed: 'completed' as EventState,
+  TimedOut: 'timedOut' as EventState,
+  Terminate: 'terminate' as EventState,
+  ToCancel: 'toCancel' as EventState,
+  Canceling: 'canceling' as EventState,
+  Canceled: 'canceled' as EventState,
+  CancelFailed: 'cancelFailed' as EventState
+}
+
+interface HistoryEvent<T> extends SWF.HistoryEvent {
+  attributes: T
+}
+
+abstract class EventHistory<R extends Transitions> {
+
+  transitionEvent(event: SWF.HistoryEvent) {
+
+
+  }
+  //returns the id we use to track an entity through the whole lifecycle
+  abstract getId(): string
+}
+interface Transition {
+  from: EventState[] | EventState,
+  to:
+
+
+}
+interface Transitions {
+
+}
+class ActivityHistory {
+
+}
+export interface EventById<T> {
+  [id: string]: T
+}
+// In order to simplify dealing with events, we traverse the history for each item
+// and treat it like each event is a state machine
+// This allows us to produce a view of events based on the states listed
+// above, as well as a grouping of types of entities in events (activities, workflows, etc)
+export class EventRollup {
+
+  constructor(rawDecision: SWF.DecisionTask) {
+
+
+  }
+
+}

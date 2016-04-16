@@ -11,7 +11,8 @@ export interface WorkflowInfo {
 export enum StopReasons {
   ProcessExit,
   WorkflowCancel,
-  HeartbeatCancel
+  HeartbeatCancel,
+  UnknownResource
 }
 export interface ActivityStatus {
   status: string,
@@ -22,11 +23,11 @@ export interface ActivityFailed {
   error: Error,
   details: ActivityStatus
 }
-export interface ActivityCancelled {
+export interface ActivityCanceled {
   reason: StopReasons,
   details: ActivityStatus
 }
-
+export type EntityTypes = 'workflow' | 'activity' | 'decision' | 'domain' | 'marker' | 'timer'
 export const UnknownResourceFault = 'UnknownResourceFault'
 export const TypeExistsFault = 'TypeAlreadyExistsFault'
 export const DomainExistsFaults = 'DomainAlreadyExistsFault'

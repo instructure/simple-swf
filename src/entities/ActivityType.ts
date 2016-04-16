@@ -2,7 +2,7 @@ import { SWF } from 'aws-sdk'
 import * as _ from 'lodash'
 
 import { SWFConfig, ConfigGroup, ConfigDefaultUnit, ConfigOverride } from '../SWFConfig'
-import { CodedError, TypeExistsFault } from '../interaces'
+import { CodedError, TypeExistsFault, EntityTypes } from '../interaces'
 import { Domain } from './Domain'
 import { Workflow } from './Workflow'
 import { ActivityTask } from '../tasks/ActivityTask'
@@ -14,14 +14,16 @@ export class ActivityType {
   version: string
   HandlerClass: typeof Activity
   opts: ConfigOverride
+  maxRetry: number
   constructor(name: string, version: string, HandlerClass: typeof Activity, opts: ConfigOverride = {}) {
     this.name = name
     this.version
     this.HandlerClass = HandlerClass
     this.opts = opts
+    this.maxRetry = opts['maxRetry'] as number || 5
   }
   ensureActivityType(domain: Domain, cb: {(Error, boolean)}) {
-    let defaults = domain.config.populateDefaults({api: 'registerActivityType'}, this.opts)
+    let defaults = domain.config.populateDefaults({entity: 'activity', api: 'registerActivityType'}, this.opts)
     let params: SWF.RegisterActivityTypeInput = {
       name: this.name,
       version: this.version,
@@ -38,7 +40,7 @@ export class ActivityType {
   }
   heartbeatTimeout(config: SWFConfig): number {
     if (this.opts['heartbeatTimeout']) return (<number>this.opts['heartbeatTimeout'])
-    return (<number>config.getValueForParam('heartbeatTimeout'))
+    return (<number>config.getValueForParam('activity', 'heartbeatTimeout'))
   }
   static getDefaultConfig(): ConfigGroup {
     return {

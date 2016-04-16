@@ -1,15 +1,17 @@
 import { EventEmitter } from 'events'
-
 import { ActivityType } from './ActivityType'
 import { Workflow } from './Workflow'
 import { ActivityTask } from '../tasks/ActivityTask'
 import { StopReasons, ActivityStatus, UnknownResourceFault, CodedError } from '../interaces'
-import { buildIdentity } from '../util/Identity'
+import { buildIdentity } from '../util/buildIdentity'
 
 export enum TaskStatus {
   Started,
   Stopped,
-  ShouldStop
+  ShouldStop,
+  Finished,
+  Canceled,
+  Failed
 }
 // this is really an abstract class, but there isn't
 // of expressing abstract static methods or passing a generic type
@@ -52,33 +54,53 @@ export class Activity extends EventEmitter {
     this.task.getInput((err, input) => {
       if (err) return cb(err, false)
       this.run(input, (err, details) => {
-        if (err) return this.task.respondFailed({error: err, details: details}, (err) => cb(err, false, details))
+        clearInterval(this.timer)
+        // if a task is canceled before we call to respond, don't respond
+        if (this.taskStatus === TaskStatus.Canceled) return
+
+        if (err) {
+          this.taskStatus = TaskStatus.Failed
+          this.emit('failed', err, details)
+          return this.task.respondFailed({error: err, details: details}, (err) => cb(err, false, details))
+        }
+
+        this.taskStatus = TaskStatus.Finished
+        this.emit('completed', details)
         this.task.respondSuccess(details, (err) => cb(err, true, details))
       })
     })
   }
-  _requestStop(reason: StopReasons, doNotRespond: boolean, cb: {(err: CodedError)}) {
+  _requestStop(reason: StopReasons, doNotRespond: boolean, cb: {(err?: CodedError)}) {
     this.taskStatus = TaskStatus.ShouldStop
     clearInterval(this.timer)
     this.stop(reason, (err, details) => {
       if (err) return cb(err)
       if (doNotRespond) {
-        this.emit('cancelled')
-        return cb(null)
+        this.taskStatus = TaskStatus.Canceled
+        this.emit('canceled', reason)
+        return cb()
       }
-      this.task.respondCancelled({reason, details}, (err) => {
+      // if we finished, don't try and cancel, probably have outstanding completion
+      if (this.taskStatus === TaskStatus.Finished) return
+      this.task.respondCanceled({reason, details}, (err) => {
         if (err) return cb(err)
-        this.emit('cancelled', reason)
+        this.taskStatus = TaskStatus.Canceled
+        this.emit('canceled', reason)
+        cb()
       })
     })
   }
   protected startHeartbeat() {
     this.timer = setInterval(() => {
+      // if we happened to finished, just bail out
+      if (this.taskStatus === TaskStatus.Finished) return
       let status = this.status()
       this.emit('heartbeat', status)
       this.task.sendHeartbeat(status, (err, shouldCancel) => {
         if (err && err.code === UnknownResourceFault) {
-          return this._requestStop(StopReasons.HeartbeatCancel, true, (err) => {
+          // could finish the task but have sent off the heartbeat, so check here
+          if (this.taskStatus === TaskStatus.Finished) return
+          return this._requestStop(StopReasons.UnknownResource, true, (err) => {
             if (err) return this.emit('failedToStop', err)
           })
         }

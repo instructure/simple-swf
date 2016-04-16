@@ -19,6 +19,9 @@
     },
     "lodash/lodash.d.ts": {
       "commit": "641df27e73ca67fa7199a3deedae104198d41a17"
+    },
+    "sinon/sinon.d.ts": {
+      "commit": "94d8775a947f626269b06ccadd6f5e61839389d0"
     }
   }
 }

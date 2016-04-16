@@ -15,8 +15,8 @@ export class Domain {
     this.swfClient = swfClient || new SWF()
   }
   ensureDomain(opts: ConfigOverride, cb: {(Error, boolean)}) {
-    let defaults = this.config.populateDefaults({api: 'registerDomain'}, opts)
-    let retention = defaults[this.config.getMappingName('executionRetentionPeriodInDays', {api: 'registerDomain'})]
+    let defaults = this.config.populateDefaults({entity: 'domain', api: 'registerDomain'}, opts)
+    let retention = defaults[this.config.getMappingName('executionRetentionPeriodInDays', {entity: 'domain', api: 'registerDomain'})]
     let params: SWF.RegisterDomainInput = {
       name: this.name,
       workflowExecutionRetentionPeriodInDays: retention,

@@ -1,12 +1,12 @@
 import { SWF, Request } from 'aws-sdk'
 
-import { DecisionTask } from '../tasks/decisionTask'
-import { Decider } from '../entities/Decider'
-import { Workflow } from '../entities/Workflow'
+import { DecisionTask } from '../tasks'
+import { Decider, Workflow } from '../entities'
 import { Worker } from './Worker'
-import { buildIdentity } from '../util/Identity'
+import { buildIdentity } from '../util/buildIdentity'
 import { SWFConfig, ConfigOverride } from '../SWFConfig'
 import { CodedError } from '../interaces'
+import { FieldSerializer } from '../util/FieldSerializer'
 
 export class DeciderWorker extends Worker<SWF.DecisionTask, DecisionTask> {
   swfClient: SWF
@@ -23,11 +23,12 @@ export class DeciderWorker extends Worker<SWF.DecisionTask, DecisionTask> {
   }
 
   buildApiRequest(): Request {
-    let defaults = this.config.populateDefaults({api: 'pollForDecisionTask'}, this.opts)
-    let taskList = defaults[this.config.getMappingName('taskList', {api: 'pollForDecisionTask'})]
+    let defaults = this.config.populateDefaults({entity: 'decision', api: 'pollForDecisionTask'}, this.opts)
+    let taskList = defaults[this.config.getMappingName('taskList', {entity: 'decision', api: 'pollForDecisionTask'})]
     let params: SWF.PollForDecisionTaskInput = {
       domain: this.workflow.domain.name,
-      taskList: taskList
+      taskList: taskList,
+      identity: this.identity
     }
     return this.swfClient.pollForDecisionTask(_.defaults<SWF.PollForDecisionTaskInput>(params, defaults))
   }
@@ -55,13 +56,17 @@ export class DeciderWorker extends Worker<SWF.DecisionTask, DecisionTask> {
     return new DecisionTask(workflow, task)
   }
 
+
   performTask(task: DecisionTask) {
     this.emit('decision', task)
-    this.decider.makeDecisions(task, (err) => {
+    task.deserializeWorkflowInput((err) => {
       if (err) return this.emit('error', err)
-      task.sendDecisions((err) => {
+      this.decider.makeDecisions(task, (err) => {
         if (err) return this.emit('error', err)
-        this.emit('madeDecision', task)
+        task.sendDecisions((err) => {
+          if (err) return this.emit('error', err)
+          this.emit('madeDecision', task)
+        })
       })
     })
   }
@@ -73,6 +78,10 @@ export class DeciderWorker extends Worker<SWF.DecisionTask, DecisionTask> {
   start(cb) {
     this._start()
     cb()
+  }
+
+  deserializeWorkflowInput(cb: {(err: Error, input: any)}) {
+
   }
 
 }

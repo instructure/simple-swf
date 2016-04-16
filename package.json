@@ -4,14 +4,17 @@
   "description": "Actually simple API layer for AWS SWF",
   "main": "index.js",
   "scripts": {
-    "pretest": "tsc",
-    "test": "mocha test/**Test.ts test/**/*Test.ts && npm run lint",
+    "pretest": "npm run build",
+    "test": "mocha build/test/*Test.js build/test/**/*Test.js && npm run lint",
+    "testSingle": "./testSingle.sh",
     "lint": "tslint src/*.ts src/**/*.ts",
     "clean": "rm -rf build",
-    "build": "npm run clean && npm run tsd && tsc",
+    "build-full": "npm run clean && npm run tsd && tsc",
+    "build": "tsc",
     "tsd": "npm run tsd-clean && tsd reinstall && tsd rebundle && tsd link",
     "tsd-clean": "rm -rf src/typings",
-    "prepublish": "in-publish && npm run build"
+    "prepublish": "in-publish && npm run build-full",
+    "coverage": "npm run build && istanbul cover _mocha --  build/test/*Test.js build/test/**/*Test.js"
   },
   "keywords": [
     "aws",
@@ -22,8 +25,11 @@
   "license": "MIT",
   "devDependencies": {
     "aws-sdk-typescript": "0.0.3",
-    "babel-cli": "^6.7.5",
+    "chai": "^3.5.0",
+    "istanbul": "^0.4.3",
     "mocha": "^2.4.5",
+    "sinon": "^1.17.3",
+    "source-map-support": "^0.4.0",
     "tslint": "^3.7.4",
     "typescript": "^1.8.10"
   },

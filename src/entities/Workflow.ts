@@ -4,7 +4,7 @@ import * as _ from 'lodash'
 import { Domain } from './Domain'
 import { SWFConfig, ConfigGroup, ConfigDefaultUnit, ConfigOverride } from '../SWFConfig'
 import { CodedError, WorkflowInfo, TypeExistsFault } from '../interaces'
-import { ClaimCheck } from '../util/ClaimCheck'
+import { FieldSerializer } from '../util/FieldSerializer'
 
 export class Workflow {
   name: string
@@ -12,17 +12,17 @@ export class Workflow {
   domain: Domain
   swfClient: SWF
   config: SWFConfig
-  claimChecker: ClaimCheck
-  constructor(domain: Domain, name: string, version: string, claimChecker: ClaimCheck) {
+  fieldSerializer: FieldSerializer
+  constructor(domain: Domain, name: string, version: string, fieldSerializer: FieldSerializer) {
     this.domain = domain
     this.name = name
     this.version = version
     this.swfClient = domain.swfClient
     this.config = domain.config
-    this.claimChecker = claimChecker
+    this.fieldSerializer = fieldSerializer
   }
   ensureWorkflow(opts: ConfigOverride, cb: {(Error, boolean)}) {
-    let defaults = this.config.populateDefaults({api: 'registerWorkflowType'}, opts)
+    let defaults = this.config.populateDefaults({entity: 'workflow', api: 'registerWorkflowType'}, opts)
     let params: SWF.RegisterWorkflowTypeInput = {
       name: this.name,
       version: this.version,
@@ -35,18 +35,19 @@ export class Workflow {
     })
   }
   startWorkflow(id: string, input: any, opts: ConfigOverride, cb: {(Error, WorkflowInfo)}) {
-    let defaults = this.config.populateDefaults({api: 'startWorkflowExecution'})
-    this.claimChecker.encode(input, (err, encoded) => {
-      let params: SWF.StartWorkflowExecutionInput = {
-        domain: this.domain.name,
-        workflowId: id,
-        input: encoded,
-        workflowType: {
-          name: this.name,
-          version: this.version
-        }
+    let defaults = this.config.populateDefaults({entity: 'workflow', api: 'startWorkflowExecution'})
+    let params: SWF.StartWorkflowExecutionInput = {
+      domain: this.domain.name,
+      workflowId: id,
+      input: input,
+      workflowType: {
+        name: this.name,
+        version: this.version
       }
-      this.swfClient.startWorkflowExecution(_.defaults<SWF.StartWorkflowExecutionInput>(params, defaults), cb)
+    }
+    let merged = _.defaults(params, defaults)
+    this.fieldSerializer.serializeAll<SWF.StartWorkflowExecutionInput>(merged, (err, encoded) => {
+      this.swfClient.startWorkflowExecution(encoded, cb)
     })
   }
 

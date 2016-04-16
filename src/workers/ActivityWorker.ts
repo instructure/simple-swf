@@ -2,12 +2,10 @@ import { SWF, Request } from 'aws-sdk'
 import * as _ from 'lodash'
 import * as async from 'async'
 
-import { Activity } from '../entities/Activity'
-import { ActivityType } from '../entities/ActivityType'
-import { ActivityTask } from '../tasks/ActivityTask'
-import { Workflow } from '../entities/Workflow'
+import { Activity, ActivityType, Workflow } from '../entities'
+import { ActivityTask } from '../tasks'
 import { Worker } from './Worker'
-import { buildIdentity } from '../util/Identity'
+import { buildIdentity } from '../util/buildIdentity'
 import { SWFConfig, ConfigOverride } from '../SWFConfig'
 import { UnknownResourceFault, StopReasons } from '../interaces'
 
@@ -28,8 +26,8 @@ class ActivityWorker extends Worker<SWF.ActivityTask, ActivityTask> {
   }
 
   buildApiRequest(): Request {
-    let defaults = this.config.populateDefaults({api: 'pollForActivityTask'}, this.opts)
-    let taskList = defaults[this.config.getMappingName('taskList', {api: 'pollForActivityTask'})]
+    let defaults = this.config.populateDefaults({entity: 'activity', api: 'pollForActivityTask'}, this.opts)
+    let taskList = defaults[this.config.getMappingName('taskList', {entity: 'activity', api: 'pollForActivityTask'})]
     let params: SWF.PollForActivityTaskInput = {
       domain: this.workflow.domain.name,
       taskList: taskList
