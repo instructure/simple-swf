@@ -1,11 +1,12 @@
 import { SWF } from 'aws-sdk'
 import * as _ from 'lodash'
+import * as async from 'async'
 
 import { Task } from './Task'
 import { Workflow } from '../entities/Workflow'
 import { ActivityType } from '../entities/ActivityType'
 import { FieldSerializer } from '../util/FieldSerializer'
-import { CodedError, EntityTypes } from '../interaces'
+import { CodedError, EntityTypes } from '../interfaces'
 import { EventRollup, Event } from './EventRollup'
 import { ConfigOverride } from '../SWFConfig'
 
@@ -26,9 +27,13 @@ export const AttributeTypeMap = {
 }
 
 export interface Decision {
-  entity: EntityTypes,
+  entities: EntityTypes[],
   overrides: ConfigOverride
   decision: SWF.Decision
+}
+
+export interface DecisionRollup {
+  [decisionType: string]: number
 }
 
 type SWFScheduleChild = SWF.StartChildWorkflowExecutionDecisionAttributes
@@ -43,19 +48,21 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
   rollup: EventRollup
   rawEvents: SWF.HistoryEvent[]
   workflowAttrs: SWFWorkflowStart
+  id: string
   constructor(workflow: Workflow, rawTask: SWF.DecisionTask) {
     super(workflow, rawTask)
     this.fieldSerializer = workflow.fieldSerializer
     this.decisions = []
     this.rollup = new EventRollup(rawTask)
     this.rawEvents = rawTask.events
+    this.id = rawTask.startedEventId.toString()
   }
   deserializeWorkflowInput(cb) {
-    if (this.rawEvents[0].eventType === 'WorkflowExecutionStarted') {
+    if (this.rawEvents[0].eventType !== 'WorkflowExecutionStarted') {
       return cb(new Error('WorkflowExecutionStarted was not first event'))
     }
     let initialEvent = this.rawEvents[0].workflowExecutionStartedEventAttributes
-    this.fieldSerializer.deserializeAll<SWFWorkflowStart>(initialEvent, (err, event) => {
+    this.fieldSerializer.deserializeAll<SWFWorkflowStart>(initialEvent!, (err, event) => {
       if (err) return cb(err)
       this.workflowAttrs = event
       cb()
@@ -76,10 +83,14 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
       let swfDec = decision.decision
       let attrName = AttributeTypeMap[swfDec.decisionType]
       let swfAttrs = swfDec[attrName]
-      let apiUse = {entity: decision.entity, api: 'respondDecisionTaskCompleted', attribute: attrName}
+      let apiUse = {entities: decision.entities, api: 'respondDecisionTaskCompleted', attribute: attrName}
       let defaults = this.config.populateDefaults(apiUse, decision.overrides)
       let merged = _.defaults(swfAttrs, defaults)
-      this.fieldSerializer.serializeAll(merged, cb)
+      this.fieldSerializer.serializeAll(merged, (err, serialized) => {
+        if (err) return cb(err)
+        swfDec[attrName] = serialized
+        cb(null, swfDec)
+      })
     }, cb)
   }
   sendDecisions(cb) {
@@ -92,15 +103,16 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
           decisions: decisions,
           executionContext: context
         }
+        console.log(params.decisions)
         this.swfClient.respondDecisionTaskCompleted(params, cb)
       })
     })
   }
-  getEventId(): number {
-    return this.rawTask.startedEventId
+  getParentWorkflowInfo(): SWF.WorkflowExecution | null {
+    return this.rawTask.events[0].workflowExecutionStartedEventAttributes!.parentWorkflowExecution || null
   }
-  getWorkflowId(): string {
-    return this.rawTask.workflowExecution.workflowId
+  isChildWorkflow(): boolean {
+    return this.getParentWorkflowInfo != null
   }
   rescheduleTimedOutEvents(): Event[] {
     let timedOut = this.rollup.getTimedOutEvents()
@@ -132,9 +144,9 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
     return actFailRe.concat(workFailRe)
   }
   private rescheduleOfType<T>(toReschedule: Event[], attrName: string, addFunc: {(T): boolean}): Event[] {
-    let failedReschedule = []
-    for (var task of toReschedule) {
-      var startAttrs = _.clone(task.scheduled[attrName])
+    let failedReschedule: Event[] = []
+    for (let task of toReschedule) {
+      let startAttrs = _.clone(task.scheduled[attrName])
       // this is an invalid option when scheduling activites and child workflows
       // otherwise, the attributes from the scheduled event are the same as the attributes to schedule a new event
       delete startAttrs.decisionTaskCompletedEventId
@@ -148,7 +160,7 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
     if (control.executionCount > control.maxRetry) return false
     taskAttrs.control = JSON.stringify(control)
     this.decisions.push({
-      entity: 'activity',
+      entities: ['activity'],
       overrides: {},
       decision: {
         decisionType: 'ScheduleActivityTask',
@@ -163,7 +175,7 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
     if (control.executionCount > control.maxRetry) return false
     childAttrs.control = JSON.stringify(control)
     this.decisions.push({
-      entity: 'workflow',
+      entities: ['workflow'],
       overrides: {},
       decision: {
         decisionType: 'StartChildWorkflowExecution',
@@ -175,7 +187,7 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
   scheduleTask(activityId: string, input: any, activity: ActivityType, opts: ConfigOverride = {}) {
     let maxRetry = opts['maxRetry'] as number || activity.maxRetry
     this.decisions.push({
-      entity: 'activity',
+      entities: ['activity'],
       overrides: opts,
       decision: {
         decisionType: 'ScheduleActivityTask',
@@ -194,7 +206,7 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
   startChildWorkflow(workflowId: string, input: any, opts: ConfigOverride = {}) {
     let maxRetry = opts['maxRetry'] as number
     this.decisions.push({
-      entity: 'workflow',
+      entities: ['workflow', 'decision'],
       overrides: opts,
       decision: {
         decisionType: 'StartChildWorkflowExecution',
@@ -204,6 +216,7 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
             name: this.workflow.name,
             version: this.workflow.version
           },
+          input: input,
           control: JSON.stringify(this.buildInitialControlDoc(maxRetry))
         }
       }
@@ -214,7 +227,7 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
     // decisions can cause an error! so zero them out
     this.decisions = []
     this.decisions.push({
-      entity: 'workflow',
+      entities: ['workflow'],
       overrides: opts,
       decision: {
         decisionType: 'FailWorkflowExecution',
@@ -224,7 +237,7 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
   }
   completeWorkflow(result: any, opts: ConfigOverride = {}) {
     this.decisions.push({
-      entity: 'workflow',
+      entities: ['workflow'],
       overrides: opts,
       decision: {
         decisionType: 'CompleteWorkflowExecution',
@@ -234,7 +247,7 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
   }
   addMarker(markerName: string, details: any, opts: ConfigOverride = {}) {
     this.decisions.push({
-      entity: 'activity', // this is really an activity... but call it one
+      entities: ['activity'], // this is really an activity... but call it one
       overrides: opts,
       decision: {
         decisionType: 'RecordMarker',
@@ -244,7 +257,7 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
   }
   cancelWorkflow(details: any, opts: ConfigOverride = {}) {
     this.decisions.push({
-      entity: 'workflow',
+      entities: ['workflow'],
       overrides: opts,
       decision: {
         decisionType: 'CancelWorkflowExecution',
@@ -254,7 +267,7 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
   }
   cancelActivity(activityId: string, opts: ConfigOverride = {}) {
     this.decisions.push({
-      entity: 'activity',
+      entities: ['activity'],
       overrides: opts,
       decision: {
         decisionType: 'RequestCancelActivityTask',
@@ -264,7 +277,7 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
   }
   startTimer(timerId: string, timerLength: number, control?: any) {
     this.decisions.push({
-      entity: 'timer',
+      entities: ['timer'],
       overrides: {},
       decision: {
         decisionType: 'StartTimer',
@@ -278,7 +291,7 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
   }
   cancelTimer(timerId: string) {
     this.decisions.push({
-      entity: 'timer',
+      entities: ['timer'],
       overrides: {},
       decision: {
         decisionType: 'CancelTimer',
@@ -286,7 +299,7 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
       }
     })
   }
-  continueAsNewWorkflow(overrideInput: string = null, opts: ConfigOverride = {}) {
+  continueAsNewWorkflow(overrideInput: string | null = null, opts: ConfigOverride = {}) {
     let params: SWF.ContinueAsNewWorkflowExecutionDecisionAttributes = {
       input: overrideInput || this.workflowAttrs.input,
       childPolicy: this.workflowAttrs.childPolicy,
@@ -299,7 +312,7 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
       workflowTypeVersion: this.workflow.version
     }
     this.decisions.push({
-      entity: 'workflow',
+      entities: ['workflow'],
       overrides: opts,
       decision: {
         decisionType: 'ContinueAsNewWorkflowExecution',
@@ -309,7 +322,7 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
   }
   scheduleLambda(lambdaName: string, id: string, input: any, opts: ConfigOverride = {}) {
     this.decisions.push({
-      entity: 'activity',
+      entities: ['activity'],
       overrides: opts,
       decision: {
         decisionType: 'ScheduleLambdaFunction',
@@ -321,11 +334,21 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
       }
     })
   }
-
+  // responds with the info made in this decision
+  getDecisionInfo(): DecisionRollup {
+    return this.decisions.reduce((rollup, decision) => {
+      if (rollup[decision.decision.decisionType]) {
+        rollup[decision.decision.decisionType] += 1
+      } else {
+        rollup[decision.decision.decisionType] = 1
+      }
+      return rollup
+    }, {} as DecisionRollup)
+  }
 
   // TODO: implement these
-  //SignalExternalWorkflowExecution: 'signalExternalWorkflowExecutionDecisionAttributes',
-  //RequestCancelExternalWorkflowExecution: 'requestCancelExternalWorkflowExecutionDecisionAttributes',
+  // SignalExternalWorkflowExecution: 'signalExternalWorkflowExecutionDecisionAttributes',
+  // RequestCancelExternalWorkflowExecution: 'requestCancelExternalWorkflowExecutionDecisionAttributes',
   private buildInitialControlDoc(maxRetry: number = SWF_MAX_RETRY) {
     return {executionCount: 1, maxRetry}
   }

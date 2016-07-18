@@ -44,14 +44,14 @@ export class EventRollup {
   }
   getTimedOutEvents(): SelectedEvents {
     return {
-      activity: _.filter(this.data.activity, {current: 'timedOut'}),
-      workflow: _.filter(this.data.workflow, {current: 'timedOut'})
+      activity: _.filter(this.data.activity!, {current: 'timedOut'}),
+      workflow: _.filter(this.data.workflow!, {current: 'timedOut'})
     }
   }
   getFailedEvents(): SelectedEvents {
     return {
-      activity: _.filter(this.data.activity, {current: 'failed'}),
-      workflow: _.filter(this.data.workflow, {current: 'failed'})
+      activity: _.filter(this.data.activity!, {current: 'failed'}),
+      workflow: _.filter(this.data.workflow!, {current: 'failed'})
     }
   }
 }

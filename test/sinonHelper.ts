@@ -7,6 +7,9 @@ export interface ClassStub<T> extends Sinon.SinonStub {
 export interface ClassMock<T> extends Sinon.SinonMock {
   object: T
 }
+export interface ClassSpy<T> extends Sinon.SinonSpy {
+  spyMethod(name: string): Sinon.SinonSpy
+}
 
 export class SinonHelper implements Sinon.SinonSandbox {
   clock: Sinon.SinonFakeTimers
@@ -34,6 +37,15 @@ export class SinonHelper implements Sinon.SinonSandbox {
     let mocked = this.mock(inst) as ClassMock<T>
     mocked.object = inst
     return mocked
+  }
+  spyClass<T>(instanceClass: Function): ClassSpy<T> {
+    let spied = this.spy(_.clone(instanceClass.prototype)) as T & ClassSpy<T>
+    if (typeof spied.spyMethod === 'function') throw new Error('have function named spyMethod, conflicts!')
+    spied.spyMethod = function(name: string): Sinon.SinonSpy {
+      return spied[name] as Sinon.SinonSpy
+    }
+    return spied
+
   }
 }
 

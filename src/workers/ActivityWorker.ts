@@ -7,11 +7,9 @@ import { ActivityTask } from '../tasks'
 import { Worker } from './Worker'
 import { buildIdentity } from '../util/buildIdentity'
 import { SWFConfig, ConfigOverride } from '../SWFConfig'
-import { UnknownResourceFault, StopReasons } from '../interaces'
+import { UnknownResourceFault, StopReasons } from '../interfaces'
 
-
-
-class ActivityWorker extends Worker<SWF.ActivityTask, ActivityTask> {
+export class ActivityWorker extends Worker<SWF.ActivityTask, ActivityTask> {
   swfClient: SWF
   config: SWFConfig
   opts: ConfigOverride
@@ -23,11 +21,14 @@ class ActivityWorker extends Worker<SWF.ActivityTask, ActivityTask> {
     super(workflow, identity)
     this.config = this.workflow.config
     this.opts = opts
+    this.activityRegistry = {}
+    this.swfClient = this.workflow.swfClient
   }
 
-  buildApiRequest(): Request {
-    let defaults = this.config.populateDefaults({entity: 'activity', api: 'pollForActivityTask'}, this.opts)
-    let taskList = defaults[this.config.getMappingName('taskList', {entity: 'activity', api: 'pollForActivityTask'})]
+  buildApiRequest(): Request<any, any> {
+    let defaults = this.config.populateDefaults({entities: ['activity'], api: 'pollForActivityTask'}, this.opts)
+    let taskListKey = this.config.getMappingName('taskList', {entities: ['activity'], api: 'pollForActivityTask'})
+    let taskList = defaults[taskListKey!]
     let params: SWF.PollForActivityTaskInput = {
       domain: this.workflow.domain.name,
       taskList: taskList
@@ -52,6 +53,8 @@ class ActivityWorker extends Worker<SWF.ActivityTask, ActivityTask> {
       this.emit('error', err)
     })
     execution._start((err, status, details) => {
+      // this error should only indicate AWS errors, the actual result of the task
+      // is handler by the activity
       if (err && err.code !== UnknownResourceFault) this.emit('error', err)
       if (err) this.emit('warn', err)
       this.emit('finished', task, execution, status, details)
@@ -67,11 +70,12 @@ class ActivityWorker extends Worker<SWF.ActivityTask, ActivityTask> {
   }
 
   start(cb) {
-    let activitties = _.values<ActivityType>(this.activityRegistry)
-    async.map(activitties, (act, cb) => act.ensureActivityType(this.workflow.domain, cb), (err) => {
+    let activities = _.values<ActivityType>(this.activityRegistry)
+    async.map(activities, (act, cb) => act.ensureActivityType(this.workflow.domain, cb), (err, results) => {
       if (err) return cb(err)
+      let withCreated = activities.map((act, index) => ({activity: act, created: results[index]}))
       this._start()
-      cb()
+      cb(null, withCreated)
     })
   }
 
@@ -82,7 +86,4 @@ class ActivityWorker extends Worker<SWF.ActivityTask, ActivityTask> {
   getActivityType(name: string): ActivityType {
     return this.activityRegistry[name]
   }
-
 }
-
-export default ActivityWorker

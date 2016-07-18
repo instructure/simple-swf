@@ -34,25 +34,25 @@ describe('SWFConfig', () => {
     let config = new SWFConfig()
     it('should grab the config values', () => {
       let configVals = config.getParamsForApi({
-        entity: 'activity',
+        entities: ['activity'],
         api: 'respondDecisionTaskCompleted',
         attribute: 'scheduleActivityTaskDecisionAttributes'
       })
       assert.typeOf(configVals['heartbeatTimeout'].value, 'number')
-      assert.typeOf(configVals['startToCloseTimeout'].value, 'number')
+      assert.equal(configVals['startToCloseTimeout'].value, 'NONE')
       assert(configVals['description'] == null)
     })
     it('should reduce to only the single mapping ask for', () => {
-      let configVals = config.getParamsForApi({entity: 'activity', api: 'registerActivityType'})
+      let configVals = config.getParamsForApi({entities: ['activity'], api: 'registerActivityType'})
       assert.equal(configVals['startToCloseTimeout'].mappings.length, 1)
       assert.equal(configVals['startToCloseTimeout'].mappings[0].api, 'registerActivityType')
     })
     it('should return an empty config group for invalid configs', () => {
-      let configVals = config.getParamsForApi({entity: 'activity', api: 'fakeApi'})
+      let configVals = config.getParamsForApi({entities: ['activity'], api: 'fakeApi'})
       assert.deepEqual(configVals, {})
     })
     it('should handle an invalid entity by return empty config', () => {
-      let configVals = config.getParamsForApi({entity: 'marker', api: 'fakeApi'})
+      let configVals = config.getParamsForApi({entities: ['marker'], api: 'fakeApi'})
       assert.deepEqual(configVals, {})
     })
   })
@@ -60,41 +60,51 @@ describe('SWFConfig', () => {
     let config = new SWFConfig()
     it('should return the proper name of a config', () => {
       let decActName = config.getMappingName('heartbeatTimeout', {
-        entity: 'activity',
+        entities: ['activity'],
         api: 'respondDecisionTaskCompleted',
         attribute: 'scheduleActivityTaskDecisionAttributes'
       })
       assert.equal(decActName, 'heartbeatTimeout')
-      let regActName = config.getMappingName('heartbeatTimeout', {entity: 'activity', api: 'registerActivityType'})
+      let regActName = config.getMappingName('heartbeatTimeout', {entities: ['activity'], api: 'registerActivityType'})
       assert.equal(regActName, 'defaultTaskHeartbeatTimeout')
     })
     it('should null if invalid api', () => {
-      let badApi = config.getMappingName('heartbeatTimeout', {entity: 'activity', api: 'noApi'})
+      let badApi = config.getMappingName('heartbeatTimeout', {entities: ['activity'], api: 'noApi'})
       assert.isNull(badApi)
-      let badConfig = config.getMappingName('fakeConfig', {entity: 'activity', api: 'registerActivityType'})
+      let badConfig = config.getMappingName('fakeConfig', {entities: ['activity'], api: 'registerActivityType'})
       assert.isNull(badConfig)
       //valid entity type, but no config.. good enough for now
-      let badEntity = config.getMappingName('heartbeatTimeout', {entity: 'marker', api: 'registerActivityType'})
+      let badEntity = config.getMappingName('heartbeatTimeout', {entities: ['marker'], api: 'registerActivityType'})
       assert.isNull(badEntity)
     })
   })
   describe('populateDefaults', () => {
     let config = new SWFConfig()
     it('should populate values for a given api', () => {
-      let registerActivityVals = config.populateDefaults({entity: 'activity', api: 'registerActivityType'})
+      let registerActivityVals = config.populateDefaults({entities: ['activity'], api: 'registerActivityType'})
       assert.equal(registerActivityVals['defaultTaskHeartbeatTimeout'], '120', 'should be a string')
       // strip out values that default to null
       assert.isUndefined(registerActivityVals['description'])
     })
     it('should properly use the format function', () => {
-      let registerActivityVals = config.populateDefaults({entity: 'workflow', api: 'registerWorkflowType'})
+      let registerActivityVals = config.populateDefaults({entities: ['workflow'], api: 'registerWorkflowType'})
       assert.deepEqual(registerActivityVals['defaultTaskList'], {name: 'simple-swf'})
     })
     it('should properly use overrides', () => {
       let overrides: ConfigOverride = {taskList: 'hello', startToCloseTimeout: 100}
-      let registerActivityVals = config.populateDefaults({entity: 'workflow', api: 'registerWorkflowType'}, overrides)
+      let registerActivityVals = config.populateDefaults({entities: ['workflow'], api: 'registerWorkflowType'}, overrides)
       assert.deepEqual(registerActivityVals['defaultTaskList'], {name: 'hello'})
       assert.deepEqual(registerActivityVals['defaultExecutionStartToCloseTimeout'], '100')
+    })
+  })
+  describe('getValueForParam', () => {
+    let config = new SWFConfig()
+    it('should return the value for entity and param', () => {
+      assert.equal(config.getValueForParam('activity', 'heartbeatTimeout'), 120)
+    })
+    it('should handle missing stuff', () => {
+      assert.isNull(config.getValueForParam('marker', 'heartbeatTimeout'))
+      assert.isNull(config.getValueForParam('marker', 'fake'))
     })
   })
 })

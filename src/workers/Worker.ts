@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events'
 import { Request } from 'aws-sdk'
-import { SWFTask, CodedError } from '../interaces'
+import { SWFTask, CodedError } from '../interfaces'
 import { Task } from '../tasks/Task'
 import { Workflow } from '../entities/Workflow'
 
@@ -14,7 +14,7 @@ export abstract class Worker<T extends SWFTask, W extends Task<SWFTask>> extends
   identity: string
   workflow: Workflow
 
-  private currentRequest: Request
+  private currentRequest: Request<any, any> | null
   private pollingState: PollingStates
 
   constructor(workflow: Workflow, identity: string) {
@@ -42,6 +42,7 @@ export abstract class Worker<T extends SWFTask, W extends Task<SWFTask>> extends
 
   loop() {
     let req = this.buildApiRequest()
+    this.currentRequest = req
     this.emit('poll', req)
     this.sendRequest(req, (err, data: T) => {
       if (this.pollingState === PollingStates.ShouldStop) return
@@ -60,12 +61,12 @@ export abstract class Worker<T extends SWFTask, W extends Task<SWFTask>> extends
     })
   }
 
-  sendRequest(req: Request, cb: {(err: CodedError, data: T)}) {
+  sendRequest(req: Request<any, any>, cb: {(err: CodedError, data: T)}) {
     req.send(cb)
   }
 
   abstract wrapTask(workflow: Workflow, data: T): W
-  abstract buildApiRequest(): Request
+  abstract buildApiRequest(): Request<any, any>
   abstract performTask(task: W)
   abstract handleError(err: Error): boolean
 }

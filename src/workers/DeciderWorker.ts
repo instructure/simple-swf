@@ -1,11 +1,12 @@
 import { SWF, Request } from 'aws-sdk'
+import * as _ from 'lodash'
 
 import { DecisionTask } from '../tasks'
 import { Decider, Workflow } from '../entities'
 import { Worker } from './Worker'
 import { buildIdentity } from '../util/buildIdentity'
 import { SWFConfig, ConfigOverride } from '../SWFConfig'
-import { CodedError } from '../interaces'
+import { CodedError } from '../interfaces'
 import { FieldSerializer } from '../util/FieldSerializer'
 
 export class DeciderWorker extends Worker<SWF.DecisionTask, DecisionTask> {
@@ -19,12 +20,14 @@ export class DeciderWorker extends Worker<SWF.DecisionTask, DecisionTask> {
     super(decider.workflow, identity)
     this.decider = decider
     this.config = this.workflow.config
+    this.swfClient = this.workflow.swfClient
     this.opts = opts
   }
 
-  buildApiRequest(): Request {
-    let defaults = this.config.populateDefaults({entity: 'decision', api: 'pollForDecisionTask'}, this.opts)
-    let taskList = defaults[this.config.getMappingName('taskList', {entity: 'decision', api: 'pollForDecisionTask'})]
+  buildApiRequest(): Request<any, any> {
+    let defaults = this.config.populateDefaults({entities: ['decision'], api: 'pollForDecisionTask'}, this.opts)
+    let taskListKey = this.config.getMappingName('taskList', {entities: ['decision'], api: 'pollForDecisionTask'})
+    let taskList = defaults[taskListKey!]
     let params: SWF.PollForDecisionTaskInput = {
       domain: this.workflow.domain.name,
       taskList: taskList,
@@ -34,13 +37,13 @@ export class DeciderWorker extends Worker<SWF.DecisionTask, DecisionTask> {
   }
 
   // DecisionTaks have pagination, override this to paginate
-  sendRequest(req: Request, cb: {(err: CodedError, d: SWF.DecisionTask)}) {
+  sendRequest(req: Request<any, any>, cb: {(err: CodedError | null, d: SWF.DecisionTask | null)}) {
     let events: SWF.HistoryEvent[] = []
-    let decisionTask: SWF.DecisionTask = null
+    let decisionTask: SWF.DecisionTask | null = null
     req.eachPage((err: CodedError, data: SWF.DecisionTask) => {
       if (err) return cb(err, null)
       if (!data) {
-        decisionTask.events = events
+        decisionTask!.events = events
         return cb(null, decisionTask)
       }
       if (!decisionTask) decisionTask = data

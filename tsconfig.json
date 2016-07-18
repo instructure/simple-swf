@@ -5,6 +5,7 @@
     "noImplicitAny": false,
     "sourceMap": true,
     "declaration": true,
+    "strictNullChecks": true,
     "outDir": "build/"
   },
   "formatCodeOptions": {

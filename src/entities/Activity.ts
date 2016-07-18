@@ -2,8 +2,7 @@ import { EventEmitter } from 'events'
 import { ActivityType } from './ActivityType'
 import { Workflow } from './Workflow'
 import { ActivityTask } from '../tasks/ActivityTask'
-import { StopReasons, ActivityStatus, UnknownResourceFault, CodedError } from '../interaces'
-import { buildIdentity } from '../util/buildIdentity'
+import { StopReasons, ActivityStatus, UnknownResourceFault, CodedError } from '../interfaces'
 
 export enum TaskStatus {
   Started,
@@ -22,6 +21,8 @@ export class Activity extends EventEmitter {
   workflow: Workflow
   taskStatus: TaskStatus
   id: string
+  activityType: ActivityType
+  workflowId: string
   private heartbeatInterval: number
   private timer: NodeJS.Timer
   // this constructor is not to be called by the user, it gets created
@@ -31,17 +32,15 @@ export class Activity extends EventEmitter {
     this.task = task
     this.workflow = workflow
     this.heartbeatInterval = activityType.heartbeatTimeout(workflow.config)
+    this.activityType = activityType
     this.taskStatus = TaskStatus.Stopped
-    this.id = buildIdentity(activityType.name)
+    this.id = task.rawTask.activityId
   }
 
   status(): ActivityStatus {
     return {status: 'UNKNOWN'}
   }
-  signal(string: string) {
-    return
-  }
-  stop(reason: StopReasons, cb: {(err: CodedError, details?: ActivityStatus)}) {
+  stop(reason: StopReasons | null, cb: {(err: CodedError, details: ActivityStatus | null)}) {
     throw new Error('this method must be overriden!')
   }
   run(input: any, cb: {(err: CodedError, details: ActivityStatus)}) {
@@ -118,6 +117,5 @@ export class Activity extends EventEmitter {
   }
   static getActivityType(): ActivityType {
     throw new Error('this method must be overriden!')
-    //return new ActivityType('myTask', '1.0.0', Activity)
   }
 }

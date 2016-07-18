@@ -2,14 +2,15 @@ import { SWF } from 'aws-sdk'
 import { Task } from './Task'
 import { Workflow } from '../entities/Workflow'
 import { FieldSerializer } from '../util/FieldSerializer'
-import { ActivityStatus, CodedError, ActivityFailed, ActivityCanceled } from '../interaces'
+import { ActivityStatus, CodedError, ActivityFailed, ActivityCanceled } from '../interfaces'
 
-const UNKNOWN_FAULT = 'UnknownResourceFault'
 export class ActivityTask extends Task<SWF.ActivityTask> {
   fieldSerializer: FieldSerializer
+  id: string
   constructor(workflow: Workflow, rawTask: SWF.ActivityTask) {
     super(workflow, rawTask)
     this.fieldSerializer = workflow.fieldSerializer
+    this.id = rawTask.activityId
   }
 
   respondSuccess(result: ActivityStatus, cb) {
@@ -49,7 +50,7 @@ export class ActivityTask extends Task<SWF.ActivityTask> {
   }
 
   getInput(cb: {(err: Error, input: any)}) {
-    this.fieldSerializer.deserialize(this.rawTask.input, cb)
+    this.fieldSerializer.deserialize(this.rawTask.input || null, cb)
   }
 
   sendHeartbeat(status: ActivityStatus, cb: {(Error, boolean)}) {

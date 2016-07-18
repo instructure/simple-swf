@@ -2,11 +2,10 @@ import { SWF } from "aws-sdk"
 import * as _ from 'lodash'
 
 import { ConfigGroup, ConfigDefaultUnit, SWFConfig, ConfigOverride } from '../SWFConfig'
-import { CodedError, DomainExistsFaults } from '../interaces'
+import { CodedError, DomainExistsFaults } from '../interfaces'
 
 export class Domain {
   name: string
-  description: string
   swfClient: SWF
   config: SWFConfig
   constructor(name: string, config: SWFConfig, swfClient?: SWF) {
@@ -15,8 +14,10 @@ export class Domain {
     this.swfClient = swfClient || new SWF()
   }
   ensureDomain(opts: ConfigOverride, cb: {(Error, boolean)}) {
-    let defaults = this.config.populateDefaults({entity: 'domain', api: 'registerDomain'}, opts)
-    let retention = defaults[this.config.getMappingName('executionRetentionPeriodInDays', {entity: 'domain', api: 'registerDomain'})]
+    let defaults = this.config.populateDefaults({entities: ['domain'], api: 'registerDomain'}, opts)
+    let retentionKey = this.config.getMappingName('executionRetentionPeriodInDays', {entities: ['domain'],
+     api: 'registerDomain'})
+    let retention = defaults[retentionKey!]
     let params: SWF.RegisterDomainInput = {
       name: this.name,
       workflowExecutionRetentionPeriodInDays: retention,

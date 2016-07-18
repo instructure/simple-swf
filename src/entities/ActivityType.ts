@@ -2,12 +2,11 @@ import { SWF } from 'aws-sdk'
 import * as _ from 'lodash'
 
 import { SWFConfig, ConfigGroup, ConfigDefaultUnit, ConfigOverride } from '../SWFConfig'
-import { CodedError, TypeExistsFault, EntityTypes } from '../interaces'
+import { CodedError, TypeExistsFault, EntityTypes } from '../interfaces'
 import { Domain } from './Domain'
 import { Workflow } from './Workflow'
 import { ActivityTask } from '../tasks/ActivityTask'
 import { Activity } from './Activity'
-
 
 export class ActivityType {
   name: string
@@ -17,13 +16,13 @@ export class ActivityType {
   maxRetry: number
   constructor(name: string, version: string, HandlerClass: typeof Activity, opts: ConfigOverride = {}) {
     this.name = name
-    this.version
+    this.version = version
     this.HandlerClass = HandlerClass
     this.opts = opts
     this.maxRetry = opts['maxRetry'] as number || 5
   }
   ensureActivityType(domain: Domain, cb: {(Error, boolean)}) {
-    let defaults = domain.config.populateDefaults({entity: 'activity', api: 'registerActivityType'}, this.opts)
+    let defaults = domain.config.populateDefaults({entities: ['activity'], api: 'registerActivityType'}, this.opts)
     let params: SWF.RegisterActivityTypeInput = {
       name: this.name,
       version: this.version,
@@ -32,6 +31,7 @@ export class ActivityType {
     domain.swfClient.registerActivityType(_.defaults<SWF.RegisterActivityTypeInput>(params, defaults), (err: CodedError) => {
       if (err && err.code !== TypeExistsFault) return cb(err, false)
       if (err) return cb(null, false)
+
       cb(null, true)
     })
   }
@@ -57,10 +57,11 @@ export class ActivityType {
         description: 'The maximum amount of time an activity task can be outstanding after being started. 0 or NONE indiciate no limit',
         mappings: [
           {api: 'registerActivityType', name: 'defaultTaskStartToCloseTimeout'},
+          {api: 'startWorkflowExecution', name: 'taskStartToCloseTimeout'},
           {api: 'respondDecisionTaskCompleted', attribute: 'scheduleActivityTaskDecisionAttributes', name: 'startToCloseTimeout'},
           {api: 'respondDecisionTaskCompleted', attribute: 'scheduleLambdaFunctionDecisionAttributes', name: 'startToCloseTimeout'}
         ],
-        value: 0,
+        value: 'NONE',
         unit: ConfigDefaultUnit.Second,
       },
       scheduleToStartTimeout: {
@@ -69,7 +70,7 @@ export class ActivityType {
           {api: 'registerActivityType', name: 'defaultTaskScheduleToStartTimeout'},
           {api: 'respondDecisionTaskCompleted', attribute: 'scheduleActivityTaskDecisionAttributes', name: 'scheduleToStartTimeout'},
         ],
-        value: 0,
+        value: 'NONE',
         unit: ConfigDefaultUnit.Second,
       },
       scheduleToCloseTimeout: {
@@ -78,14 +79,15 @@ export class ActivityType {
           {api: 'registerActivityType', name: 'defaultTaskScheduleToCloseTimeout'},
           {api: 'respondDecisionTaskCompleted', attribute: 'scheduleActivityTaskDecisionAttributes', name: 'scheduleToCloseTimeout'},
         ],
-        value: 0,
+        value: 'NONE',
         unit: ConfigDefaultUnit.Second,
       },
       taskList: {
         description: 'Specifies the taskList name for a specific activity or filters by taskList, see SWF docs for more stails',
         mappings: [
           {api: 'registerActivityType', name: 'defaultTaskList'},
-          {api: 'respondDecisionTaskCompleted', attribute: 'startChildWorkflowExecutionDecisionAttributes', name: 'taskList'}
+          {api: 'respondDecisionTaskCompleted', attribute: 'startChildWorkflowExecutionDecisionAttributes', name: 'taskList'},
+          {api: 'pollForActivityTask', name: 'taskList'}
         ],
         value: 'simple-swf',
         format: function(name) {

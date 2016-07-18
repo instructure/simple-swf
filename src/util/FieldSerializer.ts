@@ -22,14 +22,14 @@ export class FieldSerializer {
     this.claimChecker = claimChecker
     this.maxLength = opts['maxLength'] as number || DefaultLenLim
   }
-  serializeAll<T>(input: any, cb: {(Error, T)}) {
+  serializeAll<T>(input: any, cb: {(Error?, T?)}) {
     if (typeof input !== 'object') return this.serialize(input, cb)
     async.each(this.fields, (fieldName, cb) => {
       if (!input[fieldName]) return process.nextTick(cb)
       this.serialize(input[fieldName], (err, serialized) => {
         if (err) return cb(err)
         input[fieldName] = serialized
-        cb(null)
+        cb()
       })
     }, (err) => {
       if (err) return cb(err, null)
@@ -37,7 +37,7 @@ export class FieldSerializer {
     })
   }
   serialize(input: any, cb: {(Error, string)}) {
-    let stringified: string = null
+    let stringified: string = ''
     let isAlreadyCK = false
     if (typeof input === 'object') {
       isAlreadyCK = this.claimChecker.isClaimCheck(input)
@@ -51,24 +51,25 @@ export class FieldSerializer {
     if (!this.tooLong(stringified) || isAlreadyCK) return process.nextTick(() => cb(null, stringified))
     this.claimChecker.buildCheck(stringified, cb)
   }
-  deserializeAll<T>(input: Object, cb: {(err, T)}) {
+  deserializeAll<T>(input: Object, cb: {(Error?, T?)}) {
     this.deserializeSome(this.fields, input, cb)
   }
-  deserializeSome<T>(fields: string[], input: Object, cb: {(err, t)}) {
+  deserializeSome<T>(fields: string[], input: Object, cb: {(Error?, T?)}) {
     async.each(fields, (fieldName, cb) => {
       if (!input[fieldName]) return process.nextTick(cb)
       this.deserialize<T>(input[fieldName], (err, deserialized) => {
         if (err) return cb(err)
-        input[fieldName] = deserialized
-        cb(null)
+        input![fieldName] = deserialized
+        cb()
       })
     }, (err) => {
       if (err) return cb(err, null)
       cb(null, input as T)
     })
   }
-  deserialize<T>(input: string, cb: {(Error, T)}) {
+  deserialize<T>(input: string | null, cb: {(Error?, T?)}) {
     let parsed: any = null
+    if (!input) return cb()
     try {
       parsed = JSON.parse(input)
     } catch (e) {
@@ -84,7 +85,7 @@ export class FieldSerializer {
       } catch (e) {
         parsed = res
       }
-      cb(null, parsed as T)
+      cb(null, parsed! as T)
     })
   }
 

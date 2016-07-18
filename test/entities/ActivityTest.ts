@@ -1,8 +1,9 @@
 import { assert } from 'chai'
+import { SWF } from 'aws-sdk'
 
 import { Activity, TaskStatus, Workflow, ActivityType } from '../../src/entities'
 import { ActivityTask } from '../../src/tasks'
-import { ActivityStatus, StopReasons } from '../../src/interaces'
+import { ActivityStatus, StopReasons } from '../../src/interfaces'
 import newContext from '../sinonHelper'
 
 describe('Activity', () => {
@@ -12,7 +13,7 @@ describe('Activity', () => {
     let activityTypeMock = sandbox.stubClass<ActivityType>(ActivityType)
     activityTypeMock.stubMethod('heartbeatTimeout').returns(10)
     activityTypeMock.name = 'foo'
-    let activity = new Activity(workflowMock, activityTypeMock, {} as ActivityTask)
+    let activity = new Activity(workflowMock, activityTypeMock, {rawTask: {activityId: '1234'}} as ActivityTask)
     it('should populate correct fields on instance new instace', () => {
       it('should throw an error on default implementation', () => {
         assert.equal(activity['_heartbeatInterval'], 10)
@@ -35,7 +36,7 @@ describe('Activity', () => {
     let workflowMock = sandbox.stubClass<Workflow>(Workflow)
     let activityTypeMock = sandbox.stubClass<ActivityType>(ActivityType)
     activityTypeMock.stubMethod('heartbeatTimeout').returns(10)
-    let activity = new Activity(workflowMock, activityTypeMock, {} as ActivityTask)
+    let activity = new Activity(workflowMock, activityTypeMock, {rawTask: {activityId: '1234'}} as ActivityTask)
     it('should throw an error on default implementation', () => {
       assert.throws(() => activity.run(null, () => {}), 'overriden')
     })
@@ -46,7 +47,7 @@ describe('Activity', () => {
     let workflowMock = sandbox.stubClass<Workflow>(Workflow)
     let activityTypeMock = sandbox.stubClass<ActivityType>(ActivityType)
     activityTypeMock.stubMethod('heartbeatTimeout').returns(10)
-    let activity = new Activity(workflowMock, activityTypeMock, {} as ActivityTask)
+    let activity = new Activity(workflowMock, activityTypeMock, {rawTask: {activityId: '1234'}} as ActivityTask)
     it('should throw an error on default implementation', () => {
       assert.throws(() => activity.stop(null, () => {}), 'overriden')
     })
@@ -59,6 +60,7 @@ describe('Activity', () => {
     activityTypeMock.stubMethod('heartbeatTimeout').returns(10)
     it('should work to do a normal task', (done) => {
       let taskMock = sandbox.mockClass<ActivityTask>(ActivityTask)
+      taskMock.object.rawTask = {activityId: '1234'} as SWF.ActivityTask
       taskMock.expects('getInput').once().callsArgWithAsync(0, null, {myTask: 'input'})
       taskMock.expects('respondSuccess').once().callsArgWithAsync(1, null, true, {status: 'test'})
       let runCalled = false
@@ -72,7 +74,7 @@ describe('Activity', () => {
         assert(runCalled)
         assert.equal(activity.taskStatus, TaskStatus.Finished)
         assert(success)
-        assert(res.status, 'test')
+        assert(res!.status, 'test')
         taskMock.verify()
         done()
       })
@@ -80,6 +82,7 @@ describe('Activity', () => {
     })
     it('should respond if a task failed', (done) => {
       let taskMock = sandbox.mockClass<ActivityTask>(ActivityTask)
+      taskMock.object.rawTask = {activityId: '1234'} as SWF.ActivityTask
       taskMock.expects('getInput').once().callsArgWithAsync(0, null, {myTask: 'input'})
       taskMock.expects('respondSuccess').never()
       taskMock.expects('respondFailed').once().callsArgWithAsync(1, null)
@@ -92,7 +95,7 @@ describe('Activity', () => {
         assert.ifError(err)
         assert.equal(activity.taskStatus, TaskStatus.Failed)
         assert(!success)
-        assert(res.status, 'failed')
+        assert(res!.status, 'failed')
         taskMock.verify()
         done()
       })
@@ -101,6 +104,7 @@ describe('Activity', () => {
 
     it('should emit heartbeats for long running tasks', (done) => {
       let taskMock = sandbox.mockClass<ActivityTask>(ActivityTask)
+      taskMock.object.rawTask = {activityId: '1234'} as SWF.ActivityTask
       taskMock.expects('getInput').once().callsArgWithAsync(0, null, {myTask: 'input'})
       taskMock.expects('respondSuccess').once().callsArgWithAsync(1, null, true, {status: 'test'})
       taskMock.expects('sendHeartbeat').once().callsArgWithAsync(1, null, false)
@@ -125,13 +129,14 @@ describe('Activity', () => {
 
     it('should work to have a heartbeat cancel an operation', (done) => {
       let taskMock = sandbox.mockClass<ActivityTask>(ActivityTask)
+      taskMock.object.rawTask = {activityId: '1234'} as SWF.ActivityTask
       taskMock.expects('getInput').once().callsArgWithAsync(0, null, {myTask: 'input'})
       taskMock.expects('respondCanceled').once().callsArgWithAsync(1, null)
       taskMock.expects('respondSuccess').never()
       taskMock.expects('sendHeartbeat').once().callsArgWithAsync(1, null, true)
       let activity = new Activity(workflowMock, activityTypeMock, taskMock.object)
       let stopCalled = false
-      let stopReason: StopReasons = null
+      let stopReason: StopReasons | null = null
       let cancelEvent = false
       activity.stop = function(reason: StopReasons, cb) {
         stopCalled = true
@@ -141,7 +146,7 @@ describe('Activity', () => {
         }, 5)
       }
       let didFinish = false
-      let runTimeout = null
+      let runTimeout: NodeJS.Timer | null = null
       activity.run = function(input: any, cb) {
         runTimeout = setTimeout(() => {
           didFinish = true
@@ -150,7 +155,7 @@ describe('Activity', () => {
       }
       activity.on('canceled', () => {
         cancelEvent = true
-        clearTimeout(runTimeout)
+        clearTimeout(runTimeout!)
         assert(!didFinish)
         assert(stopCalled)
         assert(cancelEvent)
@@ -167,13 +172,14 @@ describe('Activity', () => {
 
     it('should recover from an UnknownResourceFault by cancelling but not reporting the cancel', (done) => {
       let taskMock = sandbox.mockClass<ActivityTask>(ActivityTask)
+      taskMock.object.rawTask = {activityId: '1234'} as SWF.ActivityTask
       taskMock.expects('getInput').once().callsArgWithAsync(0, null, {myTask: 'input'})
       taskMock.expects('respondCanceled').never()
       taskMock.expects('respondSuccess').never()
       taskMock.expects('sendHeartbeat').once().callsArgWithAsync(1, {code: "UnknownResourceFault"}, true)
       let activity = new Activity(workflowMock, activityTypeMock, taskMock.object)
       let stopCalled = false
-      let stopReason: StopReasons = null
+      let stopReason: StopReasons | null = null
       let cancelEvent = false
       activity.stop = function(reason: StopReasons, cb) {
         stopCalled = true
@@ -183,7 +189,7 @@ describe('Activity', () => {
         }, 5)
       }
       let didFinish = false
-      let runTimeout = null
+      let runTimeout: NodeJS.Timer | null = null
       activity.run = function(input: any, cb) {
         runTimeout = setTimeout(() => {
           didFinish = true
@@ -192,7 +198,7 @@ describe('Activity', () => {
       }
       activity.on('canceled', () => {
         cancelEvent = true
-        clearTimeout(runTimeout)
+        clearTimeout(runTimeout!)
         assert(!didFinish)
         assert(stopCalled)
         assert(cancelEvent)
@@ -215,6 +221,7 @@ describe('Activity', () => {
     activityTypeMock.stubMethod('heartbeatTimeout').returns(10)
     it('should work to do a normal task', (done) => {
       let taskMock = sandbox.mockClass<ActivityTask>(ActivityTask)
+      taskMock.object.rawTask = {activityId: '1234'} as SWF.ActivityTask
       taskMock.expects('getInput').once().callsArgWithAsync(0, null, {myTask: 'input'})
       taskMock.expects('respondSuccess').never()
       taskMock.expects('respondCanceled').once().callsArgWithAsync(1, null)

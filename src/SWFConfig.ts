@@ -3,7 +3,7 @@ import { Domain } from './entities/Domain'
 import { Workflow } from './entities/Workflow'
 import { Decider } from './entities/Decider'
 import { ActivityType } from './entities/ActivityType'
-import { EntityTypes } from './interaces'
+import { EntityTypes } from './interfaces'
 import * as _ from 'lodash'
 
 export enum ConfigDefaultUnit {
@@ -19,14 +19,14 @@ export interface MappingValue {
   name: string
 }
 export interface MappingUse {
-  entity: EntityTypes,
+  entities: EntityTypes[],
   api: string,
   attribute?: string,
 }
 export interface ConfigValue {
-  description: string,
+  description: string | null,
   mappings: MappingValue[],
-  value: number | string,
+  value: number | string | null,
   unit: ConfigDefaultUnit,
   possible?: { [index: number]: string },
   format?(input: any): any
@@ -59,7 +59,7 @@ export class SWFConfig {
       domain: domainConfig,
       workflow: workflowConfig,
       activity: activityConfig,
-      decider: deciderConfig
+      decision: deciderConfig
     }
   }
   getValueUnit(unit: string | number): ConfigDefaultUnit {
@@ -68,7 +68,8 @@ export class SWFConfig {
     return ConfigDefaultUnit.String
   }
   applyOverrideConfig(defaultConfig: ConfigGroup, overrides: ConfigOverride = {}): ConfigGroup {
-    _.each(overrides, (override, keyName) => {
+    for (let keyName in overrides) {
+      let override = overrides[keyName]
       let emptyMapping: MappingValue[] = []
       let defaultUnit = this.getValueUnit(override)
       if (!defaultConfig[keyName]) {
@@ -81,18 +82,20 @@ export class SWFConfig {
       } else {
         defaultConfig[keyName].value = override
       }
-    })
+    }
     return defaultConfig
   }
   getParamsForApi(forApi: MappingUse): ConfigGroup {
-    if (!this.defaults[forApi.entity]) return {}
-    let mappedGroup = _.mapValues(this.defaults[forApi.entity], (configVal: ConfigValue) => {
-      let newConfigVal = _.clone(configVal)
-      newConfigVal.mappings = configVal.mappings.filter((mapping) => {
-        return this.isCorrectMapping(forApi, mapping)
+    let mappedGroup = forApi.entities.reduce((configGroup, entity) => {
+      let singleGroup = _.mapValues(this.defaults[entity] || {}, (configVal: ConfigValue) => {
+        let newConfigVal = _.clone(configVal)
+        newConfigVal.mappings = configVal.mappings.filter((mapping) => {
+          return this.isCorrectMapping(forApi, mapping)
+        })
+        return newConfigVal
       })
-      return newConfigVal
-    })
+      return _.merge(configGroup, singleGroup)
+    }, {} as ConfigGroup)
     let configGroup: ConfigGroup = {}
     for (let keyName in mappedGroup) {
       if (mappedGroup[keyName].mappings.length) {
@@ -101,33 +104,40 @@ export class SWFConfig {
     }
     return configGroup
   }
-  getValueForParam(entity: EntityTypes, paramName: string): number | string {
-    if (!this.defaults[entity]) return null
+  getValueForParam(entity: EntityTypes, paramName: string): number | string | null {
+    if (!this.defaults[entity] || !this.defaults[entity][paramName]) return null
     return this.defaults[entity][paramName].value
   }
   isCorrectMapping(forApi: MappingUse, mapping: MappingValue): boolean {
     return forApi.api === mapping.api && forApi.attribute === mapping.attribute
   }
-  getMappingName(paramName: string, forApi: MappingUse): string {
-    if (!this.defaults[forApi.entity] || !this.defaults[forApi.entity][paramName]) return null
-    let mapping = _.find(this.defaults[forApi.entity][paramName].mappings, (mapping) => {
-      return this.isCorrectMapping(forApi, mapping)
-    })
-    if (!mapping) return null
-    return mapping.name
+  getMappingName(paramName: string, forApi: MappingUse): string | null {
+    let possibleVals = forApi.entities.map((entity) => {
+      if (!this.defaults[entity] || !this.defaults[entity][paramName]) return null
+      let mapping = _.find(this.defaults[entity][paramName].mappings, (mapping) => {
+        return this.isCorrectMapping(forApi, mapping)
+      })
+      if (!mapping) return null
+      return mapping.name
+    }).filter((v) => !!v)
+    if (possibleVals.length === 0) return null
+    return possibleVals[0]
   }
   populateDefaults(forApi: MappingUse, opts: ConfigOverride = {}): { [keyName: string]: any } {
+    opts = opts || {}
     let configVals = this.getParamsForApi(forApi)
-    let mappedValues = _.mapValues(configVals, (configVal, keyName) => {
+    let mappedValues = Object.keys(configVals).map((keyName) => {
+      let configVal = configVals[keyName]
       let val = opts[keyName] || configVal.value
       if (!configVal.format && val == null) return null
-      if (!configVal.format) return val.toString()
+      if (!configVal.format) return val!.toString()
       return configVal.format(val)
     })
+    let allValues = _.zipObject(Object.keys(configVals), mappedValues)
     let defaults = {}
     for (let keyName in configVals) {
-      if (!mappedValues[keyName]) continue
-      defaults[configVals[keyName].mappings[0].name] = mappedValues[keyName]
+      if (!allValues[keyName]) continue
+      defaults[configVals[keyName].mappings[0].name] = allValues[keyName]
     }
     return defaults
   }

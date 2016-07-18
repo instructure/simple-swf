@@ -277,7 +277,7 @@ export function processEvents(events) {
     marker: {} as {[id: string]: any},
     byEventId: {} as {[id: string]: any},
     signals: {} as {[id: string]: any},
-    completed: []
+    completed: [] as any[]
   }
   events.forEach((event) => {
     state.byEventId[event.eventId] = event
@@ -293,7 +293,7 @@ export function processEvents(events) {
       var typeState = state[transition.type] || {}
       var grouped = typeState[transition.id] || {}
       grouped.current = transition.to
-      var oldEvent = null
+      var oldEvent: any = null
       if (Array.isArray(transition.from)) {
         for (var from of transition.from) {
           if (grouped[from]) {

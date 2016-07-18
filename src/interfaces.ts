@@ -25,7 +25,7 @@ export interface ActivityFailed {
 }
 export interface ActivityCanceled {
   reason: StopReasons,
-  details: ActivityStatus
+  details: ActivityStatus | null
 }
 export type EntityTypes = 'workflow' | 'activity' | 'decision' | 'domain' | 'marker' | 'timer'
 export const UnknownResourceFault = 'UnknownResourceFault'

@@ -3,7 +3,7 @@ import * as _ from 'lodash'
 
 import { Domain } from './Domain'
 import { SWFConfig, ConfigGroup, ConfigDefaultUnit, ConfigOverride } from '../SWFConfig'
-import { CodedError, WorkflowInfo, TypeExistsFault } from '../interaces'
+import { CodedError, WorkflowInfo, TypeExistsFault } from '../interfaces'
 import { FieldSerializer } from '../util/FieldSerializer'
 
 export class Workflow {
@@ -13,6 +13,7 @@ export class Workflow {
   swfClient: SWF
   config: SWFConfig
   fieldSerializer: FieldSerializer
+  runInfo: WorkflowInfo
   constructor(domain: Domain, name: string, version: string, fieldSerializer: FieldSerializer) {
     this.domain = domain
     this.name = name
@@ -22,7 +23,7 @@ export class Workflow {
     this.fieldSerializer = fieldSerializer
   }
   ensureWorkflow(opts: ConfigOverride, cb: {(Error, boolean)}) {
-    let defaults = this.config.populateDefaults({entity: 'workflow', api: 'registerWorkflowType'}, opts)
+    let defaults = this.config.populateDefaults({entities: ['workflow'], api: 'registerWorkflowType'}, opts)
     let params: SWF.RegisterWorkflowTypeInput = {
       name: this.name,
       version: this.version,
@@ -35,11 +36,15 @@ export class Workflow {
     })
   }
   startWorkflow(id: string, input: any, opts: ConfigOverride, cb: {(Error, WorkflowInfo)}) {
-    let defaults = this.config.populateDefaults({entity: 'workflow', api: 'startWorkflowExecution'})
+    let defaults = this.config.populateDefaults({entities: ['workflow', 'decision'], api: 'startWorkflowExecution'}, opts)
+    // TODO: get rid of this hack, currently need it as this API crosses entties, need
+    // to take care of in config layer
+    let taskStartParam = this.config.getMappingName('startToCloseTimeout', {entities: ['decision'], api: 'startWorkflowExecution'})
     let params: SWF.StartWorkflowExecutionInput = {
       domain: this.domain.name,
       workflowId: id,
       input: input,
+      taskStartToCloseTimeout: defaults[taskStartParam!],
       workflowType: {
         name: this.name,
         version: this.version
@@ -47,7 +52,15 @@ export class Workflow {
     }
     let merged = _.defaults(params, defaults)
     this.fieldSerializer.serializeAll<SWF.StartWorkflowExecutionInput>(merged, (err, encoded) => {
-      this.swfClient.startWorkflowExecution(encoded, cb)
+      if (err) return cb(err, null)
+      this.swfClient.startWorkflowExecution(encoded, (err, data) => {
+        if (err) return cb(err, null)
+        this.runInfo = {
+          workflowId: id,
+          runId: data.runId
+        }
+        cb(null, this.runInfo)
+      })
     })
   }
 
