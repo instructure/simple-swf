@@ -61,7 +61,7 @@ export abstract class Worker<T extends SWFTask, W extends Task<SWFTask>> extends
     })
   }
 
-  sendRequest(req: Request<any, any>, cb: {(err: CodedError, data: T)}) {
+  sendRequest(req: Request<any, any>, cb: {(err?: CodedError, data?: T)}) {
     req.send(cb)
   }
 

@@ -37,14 +37,14 @@ export class DeciderWorker extends Worker<SWF.DecisionTask, DecisionTask> {
   }
 
   // DecisionTaks have pagination, override this to paginate
-  sendRequest(req: Request<any, any>, cb: {(err: CodedError | null, d: SWF.DecisionTask | null)}) {
+  sendRequest(req: Request<any, any>, cb: {(err?: CodedError, d?: SWF.DecisionTask)}) {
     let events: SWF.HistoryEvent[] = []
     let decisionTask: SWF.DecisionTask | null = null
     req.eachPage((err: CodedError, data: SWF.DecisionTask) => {
-      if (err) return cb(err, null)
+      if (err) return cb(err)
       if (!data) {
         decisionTask!.events = events
-        return cb(null, decisionTask)
+        return cb(null!, decisionTask!)
       }
       if (!decisionTask) decisionTask = data
       events.push(...data.events)

@@ -171,7 +171,7 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
   }
   rescheduleChild(childAttrs: SWF.StartChildWorkflowExecutionDecisionAttributes): boolean {
     // we don't want to rebuild the manifest, so don't put it in the normal place
-    var control = this.getControlDoc(childAttrs.control)
+    let control = this.getControlDoc(childAttrs.control)
     if (control.executionCount > control.maxRetry) return false
     childAttrs.control = JSON.stringify(control)
     this.decisions.push({

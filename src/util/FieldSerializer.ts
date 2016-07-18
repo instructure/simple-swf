@@ -90,6 +90,6 @@ export class FieldSerializer {
   }
 
   private tooLong(field: string) {
-    return field.length > DefaultLenLim
+    return field.length > this.maxLength
   }
 }

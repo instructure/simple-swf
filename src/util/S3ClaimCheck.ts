@@ -22,7 +22,7 @@ export class S3ClaimCheck extends ClaimCheck {
     let hashed = crypto.createHash('sha1').update(input).digest('hex')
     let key = path.join(this.prefix, hashed)
     let url = `s3://${this.bucketName}/${key}`
-    this.s3Client.putObject({Bucket: this.bucketName, Key: key, Body: input}, (err, resp) => {
+    this.s3Client.putObject({Bucket: this.bucketName, Key: key, Body: input}, (err) => {
       if (err) return cb(err, null)
       let check: S3CheckFormat = {
         _claimCheck: true, key, url
@@ -30,8 +30,8 @@ export class S3ClaimCheck extends ClaimCheck {
       cb(null, JSON.stringify(check))
     })
   }
-  retriveCheck(input: CheckFormat, cb: {(Error, any)}) {
-    this.s3Client.getObject({Bucket: this.bucketName, Key: path.join(this.prefix, input.key)}, (err, res) => {
+  retriveCheck(input: CheckFormat, cb: {(Error, string)}) {
+    this.s3Client.getObject({Bucket: this.bucketName, Key: input.key}, (err, res) => {
       if (err) return cb(err, null)
       let body = res.Body
       if (Buffer.isBuffer(body)) {
