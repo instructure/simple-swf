@@ -11,10 +11,10 @@ import { Activity } from './Activity'
 export class ActivityType {
   name: string
   version: string
-  HandlerClass: typeof Activity
+  HandlerClass: {new(...args: any[]): Activity ;}
   opts: ConfigOverride
   maxRetry: number
-  constructor(name: string, version: string, HandlerClass: typeof Activity, opts: ConfigOverride = {}) {
+  constructor(name: string, version: string, HandlerClass: {new(...args: any[]): Activity ;}, opts: ConfigOverride = {}) {
     this.name = name
     this.version = version
     this.HandlerClass = HandlerClass

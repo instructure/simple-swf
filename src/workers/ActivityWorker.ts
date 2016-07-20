@@ -9,6 +9,11 @@ import { buildIdentity } from '../util/buildIdentity'
 import { SWFConfig, ConfigOverride } from '../SWFConfig'
 import { UnknownResourceFault, StopReasons } from '../interfaces'
 
+export interface ActivityTypeCreated {
+  activity: ActivityType,
+  created: boolean
+}
+
 export class ActivityWorker extends Worker<SWF.ActivityTask, ActivityTask> {
   swfClient: SWF
   config: SWFConfig
@@ -62,20 +67,20 @@ export class ActivityWorker extends Worker<SWF.ActivityTask, ActivityTask> {
     })
   }
 
-  stop(cb) {
+  stop(cb: {(Error?)}) {
     async.forEachOf(this.activeActivities, (execution: Activity, keyName, cb) => {
       delete this.activeActivities[keyName]
       execution._requestStop(StopReasons.ProcessExit, false, cb)
     }, cb)
   }
 
-  start(cb) {
+  start(cb: {(Error?, res?: ActivityTypeCreated[])}) {
     let activities = _.values<ActivityType>(this.activityRegistry)
-    async.map(activities, (act, cb) => act.ensureActivityType(this.workflow.domain, cb), (err, results) => {
+    async.map(activities, (act, cb: {(Error?, boolean?)}) => act.ensureActivityType(this.workflow.domain, cb), (err, results) => {
       if (err) return cb(err)
-      let withCreated = activities.map((act, index) => ({activity: act, created: results[index]}))
+      let withCreated = activities.map((act, index) => ({activity: act, created: results[index] as boolean}))
       this._start()
-      cb(null, withCreated)
+      cb(null!, withCreated)
     })
   }
 

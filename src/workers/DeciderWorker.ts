@@ -59,7 +59,6 @@ export class DeciderWorker extends Worker<SWF.DecisionTask, DecisionTask> {
     return new DecisionTask(workflow, task)
   }
 
-
   performTask(task: DecisionTask) {
     this.emit('decision', task)
     task.deserializeWorkflowInput((err) => {
@@ -74,17 +73,12 @@ export class DeciderWorker extends Worker<SWF.DecisionTask, DecisionTask> {
     })
   }
 
-  stop(cb) {
+  stop(cb: {(Error?)}) {
     cb()
   }
 
-  start(cb) {
+  start(cb: {(Error?)}) {
     this._start()
     cb()
   }
-
-  deserializeWorkflowInput(cb: {(err: Error, input: any)}) {
-
-  }
-
 }
