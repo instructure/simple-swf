@@ -35,17 +35,19 @@ export abstract class Worker<T extends SWFTask, W extends Task<SWFTask>> extends
     this.currentRequest.on('error', (err) => {
       this.pollingState = PollingStates.Stopped
       this.currentRequest = null
-      cb(err)
+      // ignore this error, its always going to be aborted by user
+      cb()
     })
     this.currentRequest.abort()
   }
 
   loop() {
+    if (this.pollingState === PollingStates.ShouldStop || this.pollingState === PollingStates.Stopped) return
     let req = this.buildApiRequest()
     this.currentRequest = req
     this.emit('poll', req)
-    this.sendRequest(req, (err, data: T) => {
-      if (this.pollingState === PollingStates.ShouldStop) return
+    this.sendRequest(req, (err: CodedError, data: T) => {
+      if (this.pollingState === PollingStates.ShouldStop || this.pollingState === PollingStates.Stopped) return
       if (err) {
         this.emit('error', err)
         let toContinue = this.handleError(err)
@@ -53,7 +55,7 @@ export abstract class Worker<T extends SWFTask, W extends Task<SWFTask>> extends
         return this.loop()
       }
       // didn't get any work, poll again
-      if (!data.taskToken) return this.loop()
+      if (!data || !data.taskToken) return this.loop()
       let task = this.wrapTask(this.workflow, data)
       this.emit('task', task)
       this.performTask(task)

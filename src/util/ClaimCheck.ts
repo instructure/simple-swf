@@ -4,8 +4,8 @@ export interface CheckFormat {
   key: string
 }
 export abstract class ClaimCheck {
-  abstract buildCheck(input: string, cb: {(Error, string)})
-  abstract retriveCheck(input: CheckFormat, cb: {(Error, string)})
+  abstract buildCheck(input: string, cb: {(err: Error, check: string)})
+  abstract retriveCheck(input: CheckFormat, cb: {(err: Error, original: string)})
 
   isClaimCheck(input: any): input is CheckFormat {
     if (typeof input === 'string') {

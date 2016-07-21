@@ -42,6 +42,8 @@ export class DeciderWorker extends Worker<SWF.DecisionTask, DecisionTask> {
     let decisionTask: SWF.DecisionTask | null = null
     req.eachPage((err: CodedError, data: SWF.DecisionTask) => {
       if (err) return cb(err)
+      // this happens when we abort requests, seems like a small aws-sdk bug when I would expect an error
+      if (!data && !decisionTask) return cb()
       if (!data) {
         decisionTask!.events = events
         return cb(null!, decisionTask!)
@@ -74,7 +76,7 @@ export class DeciderWorker extends Worker<SWF.DecisionTask, DecisionTask> {
   }
 
   stop(cb: {(Error?)}) {
-    cb()
+    this._stop(cb)
   }
 
   start(cb: {(Error?)}) {

@@ -36,7 +36,7 @@ export class FieldSerializer {
       cb(null, input as T)
     })
   }
-  serialize(input: any, cb: {(Error, string)}) {
+  serialize(input: any, cb: {(err: Error | null, output: string)}) {
     let stringified: string = ''
     let isAlreadyCK = false
     if (typeof input === 'object') {
@@ -79,7 +79,7 @@ export class FieldSerializer {
     if (!this.claimChecker.isClaimCheck(parsed)) return cb(null, parsed as T)
     this.claimChecker.retriveCheck(parsed, (err, res) => {
       if (err) return cb(err, null)
-      let parsed = null
+      let parsed: T | string
       try {
         parsed = JSON.parse(res)
       } catch (e) {

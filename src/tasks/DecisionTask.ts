@@ -74,8 +74,8 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
   setExecutionContext(context: any) {
     this.executionContext = context
   }
-  private encodeExecutionContext(cb: {(Error, string)}) {
-    if (!this.executionContext) return cb(null, null)
+  private encodeExecutionContext(cb: {(err: Error | null, s: string)}) {
+    if (!this.executionContext) return cb(null, '')
     this.fieldSerializer.serialize(this.executionContext, cb)
   }
   private wrapDecisions(decisions: Decision[], cb: {(Error, dec: SWF.Decision[])}) {

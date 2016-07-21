@@ -25,10 +25,10 @@ describe('S3ClaimCheck', () => {
       let input = 'some big long string here'
       checker.buildCheck(input, (err, cc) => {
         assert.ifError(err)
-        cc = JSON.parse(cc) as S3CheckFormat
+        let claimCheck = JSON.parse(cc) as S3CheckFormat
         let s3Params = callArgs[0][0]
         assert.equal(s3Params.Bucket, 'fake-bucket')
-        assert.include(s3Params.Key, cc.key)
+        assert.include(s3Params.Key, claimCheck.key)
         assert.equal(s3Params.Body, input)
         mockClient.verify()
         done()

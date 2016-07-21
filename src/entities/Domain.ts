@@ -1,4 +1,4 @@
-import { SWF } from "aws-sdk"
+import { SWF } from 'aws-sdk'
 import * as _ from 'lodash'
 
 import { ConfigGroup, ConfigDefaultUnit, SWFConfig, ConfigOverride } from '../SWFConfig'
@@ -13,7 +13,7 @@ export class Domain {
     this.config = config
     this.swfClient = swfClient || new SWF()
   }
-  ensureDomain(opts: ConfigOverride, cb: {(Error, boolean)}) {
+  ensureDomain(opts: ConfigOverride, cb: {(err?: Error, success?: boolean)}) {
     let defaults = this.config.populateDefaults({entities: ['domain'], api: 'registerDomain'}, opts)
     let retentionKey = this.config.getMappingName('executionRetentionPeriodInDays', {entities: ['domain'],
      api: 'registerDomain'})
@@ -24,8 +24,8 @@ export class Domain {
     }
     this.swfClient.registerDomain(_.defaults<SWF.RegisterDomainInput>(params, defaults), (err: CodedError) => {
       if (err && err.code !== DomainExistsFaults) return cb(err, false)
-      if (err) return cb(null, false)
-      cb(null, true)
+      if (err) return cb(null!, false)
+      cb(null!, true)
     })
   }
   static getDefaultConfig(): ConfigGroup {

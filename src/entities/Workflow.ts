@@ -22,7 +22,7 @@ export class Workflow {
     this.config = domain.config
     this.fieldSerializer = fieldSerializer
   }
-  ensureWorkflow(opts: ConfigOverride, cb: {(Error, boolean)}) {
+  ensureWorkflow(opts: ConfigOverride, cb: {(err: Error | null, success: boolean)}) {
     let defaults = this.config.populateDefaults({entities: ['workflow'], api: 'registerWorkflowType'}, opts)
     let params: SWF.RegisterWorkflowTypeInput = {
       name: this.name,
@@ -31,8 +31,8 @@ export class Workflow {
     }
     this.swfClient.registerWorkflowType(_.defaults<SWF.RegisterWorkflowTypeInput>(params, defaults), (err: CodedError) => {
       if (err && err.code !== TypeExistsFault) return cb(err, false)
-      if (err) return cb(null, false)
-      cb(null, true)
+      if (err) return cb(null!, false)
+      cb(null!, true)
     })
   }
   startWorkflow(id: string, input: any, opts: ConfigOverride, cb: {(Error, WorkflowInfo)}) {

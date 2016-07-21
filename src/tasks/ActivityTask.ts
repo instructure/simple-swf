@@ -53,7 +53,7 @@ export class ActivityTask extends Task<SWF.ActivityTask> {
     this.fieldSerializer.deserialize(this.rawTask.input || null, cb)
   }
 
-  sendHeartbeat(status: ActivityStatus, cb: {(Error, boolean)}) {
+  sendHeartbeat(status: ActivityStatus, cb: {(err: CodedError, success: boolean)}) {
     this.fieldSerializer.serialize(status, (err, encoded) => {
       let params: SWF.RecordActivityTaskHeartbeatInput = {
         taskToken: this.rawTask.taskToken,

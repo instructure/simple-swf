@@ -11,17 +11,17 @@ import { Activity } from './Activity'
 export class ActivityType {
   name: string
   version: string
-  HandlerClass: {new(...args: any[]): Activity ;}
+  HandlerClass: { new(...args: any[]): Activity }
   opts: ConfigOverride
   maxRetry: number
-  constructor(name: string, version: string, HandlerClass: {new(...args: any[]): Activity ;}, opts: ConfigOverride = {}) {
+  constructor(name: string, version: string, HandlerClass: { new(...args: any[]): Activity }, opts: ConfigOverride = {}) {
     this.name = name
     this.version = version
     this.HandlerClass = HandlerClass
     this.opts = opts
     this.maxRetry = opts['maxRetry'] as number || 5
   }
-  ensureActivityType(domain: Domain, cb: {(Error, boolean)}) {
+  ensureActivityType(domain: Domain, cb: {(err: Error | null, success: boolean)}) {
     let defaults = domain.config.populateDefaults({entities: ['activity'], api: 'registerActivityType'}, this.opts)
     let params: SWF.RegisterActivityTypeInput = {
       name: this.name,

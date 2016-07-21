@@ -67,16 +67,21 @@ export class ActivityWorker extends Worker<SWF.ActivityTask, ActivityTask> {
     })
   }
 
-  stop(cb: {(Error?)}) {
+  stop(cb: {(err?: Error)}) {
     async.forEachOf(this.activeActivities, (execution: Activity, keyName, cb) => {
       delete this.activeActivities[keyName]
       execution._requestStop(StopReasons.ProcessExit, false, cb)
-    }, cb)
+    }, (err) => {
+      // even if we have an error, we want still stop the polling
+      this._stop((stopError) => {
+        cb(err || stopError)
+      })
+    })
   }
 
   start(cb: {(Error?, res?: ActivityTypeCreated[])}) {
     let activities = _.values<ActivityType>(this.activityRegistry)
-    async.map(activities, (act, cb: {(Error?, boolean?)}) => act.ensureActivityType(this.workflow.domain, cb), (err, results) => {
+    async.map(activities, (act, cb: {(err?: Error, s?: boolean)}) => act.ensureActivityType(this.workflow.domain, cb), (err, results) => {
       if (err) return cb(err)
       let withCreated = activities.map((act, index) => ({activity: act, created: results[index] as boolean}))
       this._start()
