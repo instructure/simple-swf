@@ -2,7 +2,7 @@ import { SWF } from 'aws-sdk'
 import { Task } from './Task'
 import { Workflow } from '../entities/Workflow'
 import { FieldSerializer } from '../util/FieldSerializer'
-import { ActivityStatus, CodedError, ActivityFailed, ActivityCanceled } from '../interfaces'
+import { TaskStatus, CodedError, ActivityFailed, ActivityCanceled, TaskInput } from '../interfaces'
 
 export class ActivityTask extends Task<SWF.ActivityTask> {
   fieldSerializer: FieldSerializer
@@ -13,7 +13,7 @@ export class ActivityTask extends Task<SWF.ActivityTask> {
     this.id = rawTask.activityId
   }
 
-  respondSuccess(result: ActivityStatus, cb) {
+  respondSuccess(result: TaskStatus, cb) {
     this.fieldSerializer.serialize(result, (err, encoded) => {
       if (err) return cb(err)
       let params: SWF.RespondActivityTaskCompletedInput = {
@@ -28,7 +28,8 @@ export class ActivityTask extends Task<SWF.ActivityTask> {
       if (err) return cb(err)
       let params: SWF.RespondActivityTaskFailedInput = {
         taskToken: this.rawTask.taskToken,
-        reason: result.error.message,
+        // small guard to make sure this never gets too crazy...
+        reason: result.error.message.slice(0, 100),
         details: encoded
       }
       this.swfClient.respondActivityTaskFailed(params, cb)
@@ -49,11 +50,15 @@ export class ActivityTask extends Task<SWF.ActivityTask> {
     return this.rawTask.activityType.name
   }
 
-  getInput(cb: {(err: Error, input: any)}) {
-    this.fieldSerializer.deserialize(this.rawTask.input || null, cb)
+  getInput(cb: {(err: Error | null, input: any, env: Object)}) {
+    this.fieldSerializer.deserialize(this.rawTask.input || null, (err, input) => {
+      if (err) return cb(err, null, {})
+      let sInput = input as TaskInput
+      cb(null, sInput.input, sInput.env || {})
+    })
   }
 
-  sendHeartbeat(status: ActivityStatus, cb: {(err: CodedError, success: boolean)}) {
+  sendHeartbeat(status: TaskStatus, cb: {(err: CodedError, success: boolean)}) {
     this.fieldSerializer.serialize(status, (err, encoded) => {
       let params: SWF.RecordActivityTaskHeartbeatInput = {
         taskToken: this.rawTask.taskToken,

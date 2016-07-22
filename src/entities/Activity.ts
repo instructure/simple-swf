@@ -2,9 +2,9 @@ import { EventEmitter } from 'events'
 import { ActivityType } from './ActivityType'
 import { Workflow } from './Workflow'
 import { ActivityTask } from '../tasks/ActivityTask'
-import { StopReasons, ActivityStatus, UnknownResourceFault, CodedError } from '../interfaces'
+import { StopReasons, TaskStatus, UnknownResourceFault, CodedError } from '../interfaces'
 
-export enum TaskStatus {
+export enum TaskState {
   Started,
   Stopped,
   ShouldStop,
@@ -19,7 +19,7 @@ export class Activity extends EventEmitter {
 
   task: ActivityTask
   workflow: Workflow
-  taskStatus: TaskStatus
+  taskStatus: TaskState
   id: string
   activityType: ActivityType
   workflowId: string
@@ -33,57 +33,57 @@ export class Activity extends EventEmitter {
     this.workflow = workflow
     this.heartbeatInterval = activityType.heartbeatTimeout(workflow.config)
     this.activityType = activityType
-    this.taskStatus = TaskStatus.Stopped
+    this.taskStatus = TaskState.Stopped
     this.id = task.rawTask.activityId
   }
 
-  status(): ActivityStatus {
+  status(): TaskStatus {
     return {status: 'UNKNOWN'}
   }
-  stop(reason: StopReasons | null, cb: {(err: CodedError, details: ActivityStatus | null)}) {
+  stop(reason: StopReasons | null, cb: {(err: CodedError, details: TaskStatus | null)}) {
     throw new Error('this method must be overriden!')
   }
-  run(input: any, cb: {(err: CodedError, details: ActivityStatus)}) {
+  run(input: any, env: Object | null, cb: {(err: CodedError, details: TaskStatus)}) {
     throw new Error('this method must be overriden!')
   }
 
-  _start(cb: {(err: CodedError, success: boolean, details?: ActivityStatus)}) {
+  _start(cb: {(err: CodedError, success: boolean, details?: TaskStatus)}) {
     this.startHeartbeat()
-    this.taskStatus = TaskStatus.Started
-    this.task.getInput((err, input) => {
+    this.taskStatus = TaskState.Started
+    this.task.getInput((err, input, env) => {
       if (err) return cb(err, false)
-      this.run(input, (err, details) => {
+      this.run(input, env, (err, details) => {
         clearInterval(this.timer)
         // if a task is canceled before we call to respond, don't respond
-        if (this.taskStatus === TaskStatus.Canceled) return
+        if (this.taskStatus === TaskState.Canceled) return
 
         if (err) {
-          this.taskStatus = TaskStatus.Failed
+          this.taskStatus = TaskState.Failed
           this.emit('failed', err, details)
           return this.task.respondFailed({error: err, details: details}, (err) => cb(err, false, details))
         }
 
-        this.taskStatus = TaskStatus.Finished
+        this.taskStatus = TaskState.Finished
         this.emit('completed', details)
         this.task.respondSuccess(details, (err) => cb(err, true, details))
       })
     })
   }
   _requestStop(reason: StopReasons, doNotRespond: boolean, cb: {(err?: CodedError)}) {
-    this.taskStatus = TaskStatus.ShouldStop
+    this.taskStatus = TaskState.ShouldStop
     clearInterval(this.timer)
     this.stop(reason, (err, details) => {
       if (err) return cb(err)
       if (doNotRespond) {
-        this.taskStatus = TaskStatus.Canceled
+        this.taskStatus = TaskState.Canceled
         this.emit('canceled', reason)
         return cb()
       }
       // if we finished, don't try and cancel, probably have outstanding completion
-      if (this.taskStatus === TaskStatus.Finished) return
+      if (this.taskStatus === TaskState.Finished) return
       this.task.respondCanceled({reason, details}, (err) => {
         if (err) return cb(err)
-        this.taskStatus = TaskStatus.Canceled
+        this.taskStatus = TaskState.Canceled
         this.emit('canceled', reason)
         cb()
       })
@@ -92,13 +92,13 @@ export class Activity extends EventEmitter {
   protected startHeartbeat() {
     this.timer = setInterval(() => {
       // if we happened to finished, just bail out
-      if (this.taskStatus === TaskStatus.Finished) return
+      if (this.taskStatus === TaskState.Finished) return
       let status = this.status()
       this.emit('heartbeat', status)
       this.task.sendHeartbeat(status, (err, shouldCancel) => {
         if (err && err.code === UnknownResourceFault) {
           // could finish the task but have sent off the heartbeat, so check here
-          if (this.taskStatus === TaskStatus.Finished) return
+          if (this.taskStatus === TaskState.Finished) return
           return this._requestStop(StopReasons.UnknownResource, true, (err) => {
             if (err) return this.emit('failedToStop', err)
           })

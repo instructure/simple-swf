@@ -38,20 +38,31 @@ export interface SelectedEvents {
 
 export class EventRollup {
   data: EventData
+  env: Object
 
-  constructor(rawTask: SWF.DecisionTask) {
+  constructor(rawTask: SWF.DecisionTask, workflowEnv?: Object) {
     this.data = processEvents(rawTask.events) as EventData
+    this.env = this.buildEnv(workflowEnv || {}, this.data.completed)
   }
   getTimedOutEvents(): SelectedEvents {
     return {
-      activity: _.filter(this.data.activity!, {current: 'timedOut'}),
-      workflow: _.filter(this.data.workflow!, {current: 'timedOut'})
+      activity: _.filter(this.data.activity || [], {current: 'timedOut'}),
+      workflow: _.filter(this.data.workflow || [], {current: 'timedOut'})
     }
   }
-  getFailedEvents(): SelectedEvents {
+  getFailedEvents(): SelectedEvents  {
     return {
-      activity: _.filter(this.data.activity!, {current: 'failed'}),
-      workflow: _.filter(this.data.workflow!, {current: 'failed'})
+      activity: _.filter(this.data.activity || [], {current: 'failed'}),
+      workflow: _.filter(this.data.workflow || [], {current: 'failed'})
     }
+  }
+  buildEnv(currentEnv: Object, completed?: any[]): Object {
+    if (!completed) return currentEnv
+    for (let event of completed) {
+      if (event.state && event.state.result && event.state.result.env && typeof event.state.result.env === 'object') {
+        currentEnv = _.merge(currentEnv || {}, event.state.result.env || {})
+      }
+    }
+    return currentEnv
   }
 }

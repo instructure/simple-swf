@@ -14,18 +14,25 @@ export enum StopReasons {
   HeartbeatCancel,
   UnknownResource
 }
-export interface ActivityStatus {
+export interface TaskStatus {
   status: string,
   info?: any,
-  progress?: number
+  progress?: number,
+  env?: Object
 }
+
+export interface TaskInput {
+  env?: Object,
+  input: any
+}
+
 export interface ActivityFailed {
   error: Error,
-  details: ActivityStatus
+  details: TaskStatus
 }
 export interface ActivityCanceled {
   reason: StopReasons,
-  details: ActivityStatus | null
+  details: TaskStatus | null
 }
 export type EntityTypes = 'workflow' | 'activity' | 'decision' | 'domain' | 'marker' | 'timer'
 export const UnknownResourceFault = 'UnknownResourceFault'

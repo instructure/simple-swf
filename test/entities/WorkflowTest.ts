@@ -74,11 +74,15 @@ describe('Workflow', () => {
     let config = new SWFConfig()
 
     it('should register the workflow using defaults from config and overrides', (done) => {
+      let taskInput = {
+        input: {field: 'value'},
+        env: {myEnv: 'env'}
+      }
       let fieldSerializer = sandbox.mockClass<FieldSerializer>(FieldSerializer)
       fieldSerializer.expects('serializeAll').once().withArgs({
         domain: 'testDomain',
         workflowId: 'myId',
-        input: {field: 'value'},
+        input: JSON.stringify(taskInput),
         taskStartToCloseTimeout: '10',
         workflowType: {
           name: 'myworkflow',
@@ -88,7 +92,7 @@ describe('Workflow', () => {
       }).callsArgWithAsync(1, null, {
         domain: 'testDomain',
         workflowId: 'myId',
-        input: '{"field": "value"}',
+        input: JSON.stringify(taskInput),
         taskStartToCloseTimeout: '10',
         workflowType: {
           name: 'myworkflow',
@@ -120,14 +124,14 @@ describe('Workflow', () => {
       domain.name = 'testDomain'
       let workflow = new Workflow(domain, 'myworkflow', '1.0.0', fieldSerializer.object)
       let swfSpy = sandbox.spy(swfMock, 'startWorkflowExecution')
-      workflow.startWorkflow('myId', {field: 'value'}, {hello: 'world'}, (err, workflowInfo) => {
+      workflow.startWorkflow('myId', taskInput.input, taskInput.env, {hello: 'world'}, (err, workflowInfo) => {
         assert.ifError(err)
         assert.equal(swfSpy.callCount, 1)
         configMock.verify()
         assert.deepEqual(wfParams, {
           domain: 'testDomain',
           workflowId: 'myId',
-          input: '{"field": "value"}',
+          input: JSON.stringify(taskInput),
           taskStartToCloseTimeout: '10',
           workflowType: {
             name: 'myworkflow',

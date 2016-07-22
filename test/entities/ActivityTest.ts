@@ -1,9 +1,9 @@
 import { assert } from 'chai'
 import { SWF } from 'aws-sdk'
 
-import { Activity, TaskStatus, Workflow, ActivityType } from '../../src/entities'
+import { Activity, TaskState, Workflow, ActivityType } from '../../src/entities'
 import { ActivityTask } from '../../src/tasks'
-import { ActivityStatus, StopReasons } from '../../src/interfaces'
+import { TaskStatus, StopReasons } from '../../src/interfaces'
 import newContext from '../sinonHelper'
 
 describe('Activity', () => {
@@ -19,7 +19,7 @@ describe('Activity', () => {
         assert.equal(activity['_heartbeatInterval'], 10)
         assert.deepEqual(activity.task, {})
         assert.equal(activity.workflow, workflowMock)
-        assert.equal(activity.taskStatus, TaskStatus.Stopped)
+        assert.equal(activity.taskStatus, TaskState.Stopped)
         assert.include(activity.id, 'foo')
       })
     })
@@ -38,7 +38,7 @@ describe('Activity', () => {
     activityTypeMock.stubMethod('heartbeatTimeout').returns(10)
     let activity = new Activity(workflowMock, activityTypeMock, {rawTask: {activityId: '1234'}} as ActivityTask)
     it('should throw an error on default implementation', () => {
-      assert.throws(() => activity.run(null, () => {}), 'overriden')
+      assert.throws(() => activity.run(null, {}, () => {}), 'overriden')
     })
   })
 
@@ -65,20 +65,20 @@ describe('Activity', () => {
       taskMock.expects('respondSuccess').once().callsArgWithAsync(1, null, true, {status: 'test'})
       let runCalled = false
       let activity = new Activity(workflowMock, activityTypeMock, taskMock.object)
-      activity.run = function(input: any, cb) {
+      activity.run = function(input: any, env: Object | null, cb) {
         runCalled = true
         cb(null, {status: 'test'})
       }
       activity._start((err, success, res) => {
         assert.ifError(err)
         assert(runCalled)
-        assert.equal(activity.taskStatus, TaskStatus.Finished)
+        assert.equal(activity.taskStatus, TaskState.Finished)
         assert(success)
         assert(res!.status, 'test')
         taskMock.verify()
         done()
       })
-      assert.equal(activity.taskStatus, TaskStatus.Started, 'should change state after starting')
+      assert.equal(activity.taskStatus, TaskState.Started, 'should change state after starting')
     })
     it('should respond if a task failed', (done) => {
       let taskMock = sandbox.mockClass<ActivityTask>(ActivityTask)
@@ -88,18 +88,18 @@ describe('Activity', () => {
       taskMock.expects('respondFailed').once().callsArgWithAsync(1, null)
       let runCalled = false
       let activity = new Activity(workflowMock, activityTypeMock, taskMock.object)
-      activity.run = function(input: any, cb) {
+      activity.run = function(input: any, env: Object | null, cb) {
         cb(new Error('a problem'), {status: 'failed'})
       }
       activity._start((err, success, res) => {
         assert.ifError(err)
-        assert.equal(activity.taskStatus, TaskStatus.Failed)
+        assert.equal(activity.taskStatus, TaskState.Failed)
         assert(!success)
         assert(res!.status, 'failed')
         taskMock.verify()
         done()
       })
-      assert.equal(activity.taskStatus, TaskStatus.Started, 'should change state after starting')
+      assert.equal(activity.taskStatus, TaskState.Started, 'should change state after starting')
     })
 
     it('should emit heartbeats for long running tasks', (done) => {
@@ -111,7 +111,7 @@ describe('Activity', () => {
       let activity = new Activity(workflowMock, activityTypeMock, taskMock.object)
       let gotHeartbeat = false
       let finHeartbeat = false
-      activity.run = function(input: any, cb) {
+      activity.run = function(input: any, env: Object | null, cb) {
         setTimeout(() => {
           cb(null, {status: 'test'})
         }, 6)
@@ -147,7 +147,7 @@ describe('Activity', () => {
       }
       let didFinish = false
       let runTimeout: NodeJS.Timer | null = null
-      activity.run = function(input: any, cb) {
+      activity.run = function(input: any, env: Object | null, cb) {
         runTimeout = setTimeout(() => {
           didFinish = true
           cb(null, {status: 'test'})
@@ -159,7 +159,7 @@ describe('Activity', () => {
         assert(!didFinish)
         assert(stopCalled)
         assert(cancelEvent)
-        assert.equal(activity.taskStatus, TaskStatus.Canceled)
+        assert.equal(activity.taskStatus, TaskState.Canceled)
         assert.equal(stopReason, StopReasons.HeartbeatCancel)
         taskMock.verify()
         done()
@@ -190,7 +190,7 @@ describe('Activity', () => {
       }
       let didFinish = false
       let runTimeout: NodeJS.Timer | null = null
-      activity.run = function(input: any, cb) {
+      activity.run = function(input: any, env: Object | null, cb) {
         runTimeout = setTimeout(() => {
           didFinish = true
           cb(null, {status: 'test'})
@@ -202,7 +202,7 @@ describe('Activity', () => {
         assert(!didFinish)
         assert(stopCalled)
         assert(cancelEvent)
-        assert.equal(activity.taskStatus, TaskStatus.Canceled)
+        assert.equal(activity.taskStatus, TaskState.Canceled)
         assert.equal(stopReason, StopReasons.UnknownResource)
         taskMock.verify()
         done()
@@ -243,10 +243,10 @@ describe('Activity', () => {
           cb()
         }, 5)
       }
-      assert.equal(activity.taskStatus, TaskStatus.Started, 'should change state after starting')
+      assert.equal(activity.taskStatus, TaskState.Started, 'should change state after starting')
       activity._requestStop(StopReasons.ProcessExit, false,  (err) => {
         assert.ifError(err)
-        assert.equal(activity.taskStatus, TaskStatus.Canceled)
+        assert.equal(activity.taskStatus, TaskState.Canceled)
         assert(stopCalled)
         done()
       })

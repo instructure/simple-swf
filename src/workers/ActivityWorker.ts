@@ -27,6 +27,7 @@ export class ActivityWorker extends Worker<SWF.ActivityTask, ActivityTask> {
     this.config = this.workflow.config
     this.opts = opts
     this.activityRegistry = {}
+    this.activeActivities = {}
     this.swfClient = this.workflow.swfClient
   }
 

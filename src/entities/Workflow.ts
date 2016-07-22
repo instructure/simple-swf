@@ -3,7 +3,7 @@ import * as _ from 'lodash'
 
 import { Domain } from './Domain'
 import { SWFConfig, ConfigGroup, ConfigDefaultUnit, ConfigOverride } from '../SWFConfig'
-import { CodedError, WorkflowInfo, TypeExistsFault } from '../interfaces'
+import { CodedError, WorkflowInfo, TypeExistsFault, TaskInput } from '../interfaces'
 import { FieldSerializer } from '../util/FieldSerializer'
 
 export class Workflow {
@@ -35,7 +35,7 @@ export class Workflow {
       cb(null!, true)
     })
   }
-  startWorkflow(id: string, input: any, opts: ConfigOverride, cb: {(Error, WorkflowInfo)}) {
+  startWorkflow(id: string, input: any, env: Object | null, opts: ConfigOverride, cb: {(Error, WorkflowInfo)}) {
     let defaults = this.config.populateDefaults({entities: ['workflow', 'decision'], api: 'startWorkflowExecution'}, opts)
     // TODO: get rid of this hack, currently need it as this API crosses entties, need
     // to take care of in config layer
@@ -43,7 +43,10 @@ export class Workflow {
     let params: SWF.StartWorkflowExecutionInput = {
       domain: this.domain.name,
       workflowId: id,
-      input: input,
+      input: JSON.stringify({
+        input: input,
+        env: env
+      }),
       taskStartToCloseTimeout: defaults[taskStartParam!],
       workflowType: {
         name: this.name,

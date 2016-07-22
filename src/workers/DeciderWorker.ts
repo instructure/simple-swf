@@ -1,19 +1,32 @@
 import { SWF, Request } from 'aws-sdk'
 import * as _ from 'lodash'
+import * as async from 'async'
 
 import { DecisionTask } from '../tasks'
 import { Decider, Workflow } from '../entities'
 import { Worker } from './Worker'
 import { buildIdentity } from '../util/buildIdentity'
+import { EventTypeAttributeMap } from '../util'
 import { SWFConfig, ConfigOverride } from '../SWFConfig'
 import { CodedError } from '../interfaces'
 import { FieldSerializer } from '../util/FieldSerializer'
+
+// only try to deserialize these events types, since we really only
+// care about the 'result' field to build the env
+const EventsToDeserialize = {
+  WorkflowExecutionStarted: true,
+  WorkflowExecutionCompleted: true,
+  ActivityTaskCompleted: true,
+  ChildWorkflowExecutionCompleted: true,
+  LambdaFunctionCompleted: true,
+}
 
 export class DeciderWorker extends Worker<SWF.DecisionTask, DecisionTask> {
   swfClient: SWF
   config: SWFConfig
   opts: ConfigOverride
   decider: Decider
+  fieldSerializer: FieldSerializer
   constructor(decider: Decider, opts: ConfigOverride = {}) {
     // ensure string from overrides as ConfigOverride allows numbers
     let identity = (opts['identity'] || buildIdentity('activity')).toString()
@@ -21,6 +34,7 @@ export class DeciderWorker extends Worker<SWF.DecisionTask, DecisionTask> {
     this.decider = decider
     this.config = this.workflow.config
     this.swfClient = this.workflow.swfClient
+    this.fieldSerializer = this.workflow.fieldSerializer
     this.opts = opts
   }
 
@@ -40,8 +54,10 @@ export class DeciderWorker extends Worker<SWF.DecisionTask, DecisionTask> {
   sendRequest(req: Request<any, any>, cb: {(err?: CodedError, d?: SWF.DecisionTask)}) {
     let events: SWF.HistoryEvent[] = []
     let decisionTask: SWF.DecisionTask | null = null
-    req.eachPage((err: CodedError, data: SWF.DecisionTask) => {
+    let cbCalled = false
+    req.eachPage((err: CodedError, data: SWF.DecisionTask, done: {(): any}) => {
       if (err) return cb(err)
+      if (cbCalled) return false
       // this happens when we abort requests, seems like a small aws-sdk bug when I would expect an error
       if (!data && !decisionTask) return cb()
       if (!data) {
@@ -49,7 +65,26 @@ export class DeciderWorker extends Worker<SWF.DecisionTask, DecisionTask> {
         return cb(null!, decisionTask!)
       }
       if (!decisionTask) decisionTask = data
-      events.push(...data.events)
+      async.map<SWF.HistoryEvent, SWF.HistoryEvent>(data.events, this.deserializeEvent.bind(this), (err, desEvents) => {
+        if (err) {
+          cb(err)
+          cbCalled = true
+          // return false to stop pagination
+          return false
+        }
+        events.push(...desEvents)
+        done()
+      })
+    })
+  }
+  deserializeEvent(event: SWF.HistoryEvent, cb: {(err: Error | null, e: SWF.HistoryEvent | null)}) {
+    if (!EventsToDeserialize[event.eventType]) return process.nextTick(() => cb(null, event))
+    const attrName = EventTypeAttributeMap[event.eventType]
+    if (!attrName) return cb(new Error('cannot find attributes for event ' + event.eventType), null)
+    this.fieldSerializer.deserializeAll(event[attrName], (err, des) => {
+      if (err) return cb(err, null)
+      event[attrName] = des
+      cb(null, event)
     })
   }
 
@@ -63,14 +98,11 @@ export class DeciderWorker extends Worker<SWF.DecisionTask, DecisionTask> {
 
   performTask(task: DecisionTask) {
     this.emit('decision', task)
-    task.deserializeWorkflowInput((err) => {
+    this.decider.makeDecisions(task, (err) => {
       if (err) return this.emit('error', err)
-      this.decider.makeDecisions(task, (err) => {
+      task.sendDecisions((err) => {
         if (err) return this.emit('error', err)
-        task.sendDecisions((err) => {
-          if (err) return this.emit('error', err)
-          this.emit('madeDecision', task)
-        })
+        this.emit('madeDecision', task)
       })
     })
   }
