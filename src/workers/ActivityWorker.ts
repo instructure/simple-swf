@@ -53,8 +53,8 @@ export class ActivityWorker extends Worker<SWF.ActivityTask, ActivityTask> {
   performTask(task: ActivityTask) {
     let activityType = this.getActivityType(task.activityName())
     let execution = activityType.createExecution(this.workflow, task)
-    this.emit('startTask', task, execution)
     this.activeActivities[execution.id] = execution
+    this.emit('startTask', task, execution)
     execution.on('failedToStop', (err) => {
       this.emit('error', err)
     })
@@ -82,9 +82,12 @@ export class ActivityWorker extends Worker<SWF.ActivityTask, ActivityTask> {
 
   start(cb: {(Error?, res?: ActivityTypeCreated[])}) {
     let activities = _.values<ActivityType>(this.activityRegistry)
-    async.map(activities, (act, cb: {(err?: Error, s?: boolean)}) => act.ensureActivityType(this.workflow.domain, cb), (err, results) => {
+    async.map(
+      activities,
+      (act, cb: {(err?: Error, s?: boolean)}) => act.ensureActivityType(this.workflow.domain, cb),
+      (err, results) => {
       if (err) return cb(err)
-      let withCreated = activities.map((act, index) => ({activity: act, created: results[index] as boolean}))
+      const withCreated = activities.map((act, index) => ({activity: act, created: results[index] as boolean}))
       this._start()
       cb(null!, withCreated)
     })

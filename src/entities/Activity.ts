@@ -31,7 +31,8 @@ export class Activity extends EventEmitter {
     super()
     this.task = task
     this.workflow = workflow
-    this.heartbeatInterval = activityType.heartbeatTimeout(workflow.config)
+    // heartbeatTimout is in seconds, convert to milliseconds
+    this.heartbeatInterval = activityType.heartbeatTimeout(workflow.config) * 1000
     this.activityType = activityType
     this.taskStatus = TaskState.Stopped
     this.id = task.rawTask.activityId
@@ -113,7 +114,7 @@ export class Activity extends EventEmitter {
 
       })
     // use half the interval to ensure we do it in time!
-    }, this.heartbeatInterval * 0.5)
+  }, (this.heartbeatInterval * 0.5))
   }
   static getActivityType(): ActivityType {
     throw new Error('this method must be overriden!')

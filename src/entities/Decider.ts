@@ -24,7 +24,7 @@ export abstract class Decider {
           {api: 'respondDecisionTaskCompleted', attribute: 'continueAsNewWorkflowExecutionDecisionAttributes', name: 'taskStartToCloseTimeout'},
           {api: 'respondDecisionTaskCompleted', attribute: 'startChildWorkflowExecutionDecisionAttributes', name: 'taskStartToCloseTimeout'}
         ],
-        value: 60,
+        value: 120,
         unit: ConfigDefaultUnit.Second,
       },
       taskList: {
