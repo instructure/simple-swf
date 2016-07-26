@@ -1,6 +1,6 @@
 {
   "name": "simple-swf",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Actually simple API layer for AWS SWF",
   "main": "index.js",
   "scripts": {
