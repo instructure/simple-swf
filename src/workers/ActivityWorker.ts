@@ -53,8 +53,8 @@ export class ActivityWorker extends Worker<SWF.ActivityTask, ActivityTask> {
   performTask(task: ActivityTask) {
     let activityType = this.getActivityType(task.activityName())
     let execution = activityType.createExecution(this.workflow, task)
-    this.activeActivities[execution.id] = execution
     this.emit('startTask', task, execution)
+    this.activeActivities[execution.id] = execution
     execution.on('failedToStop', (err) => {
       this.emit('error', err)
     })

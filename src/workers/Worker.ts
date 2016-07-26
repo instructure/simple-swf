@@ -39,6 +39,7 @@ export abstract class Worker<T extends SWFTask, W extends Task<SWFTask>> extends
       cb()
     })
     this.currentRequest.abort()
+    this.currentRequest = null
   }
 
   loop() {
