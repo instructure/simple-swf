@@ -65,6 +65,7 @@ describe('Activity', () => {
       taskMock.expects('respondSuccess').once().callsArgWithAsync(1, null, true, {status: 'test'})
       let runCalled = false
       let activity = new Activity(workflowMock, activityTypeMock, taskMock.object)
+      activity.heartbeatInterval = 10
       activity.run = function(input: any, env: Object | null, cb) {
         runCalled = true
         cb(null, {status: 'test'})
@@ -88,6 +89,7 @@ describe('Activity', () => {
       taskMock.expects('respondFailed').once().callsArgWithAsync(1, null)
       let runCalled = false
       let activity = new Activity(workflowMock, activityTypeMock, taskMock.object)
+      activity.heartbeatInterval = 10
       activity.run = function(input: any, env: Object | null, cb) {
         cb(new Error('a problem'), {status: 'failed'})
       }
@@ -109,6 +111,7 @@ describe('Activity', () => {
       taskMock.expects('respondSuccess').once().callsArgWithAsync(1, null, true, {status: 'test'})
       taskMock.expects('sendHeartbeat').once().callsArgWithAsync(1, null, false)
       let activity = new Activity(workflowMock, activityTypeMock, taskMock.object)
+      activity.heartbeatInterval = 10
       let gotHeartbeat = false
       let finHeartbeat = false
       activity.run = function(input: any, env: Object | null, cb) {
@@ -135,6 +138,7 @@ describe('Activity', () => {
       taskMock.expects('respondSuccess').never()
       taskMock.expects('sendHeartbeat').once().callsArgWithAsync(1, null, true)
       let activity = new Activity(workflowMock, activityTypeMock, taskMock.object)
+      activity.heartbeatInterval = 10
       let stopCalled = false
       let stopReason: StopReasons | null = null
       let cancelEvent = false
@@ -178,6 +182,7 @@ describe('Activity', () => {
       taskMock.expects('respondSuccess').never()
       taskMock.expects('sendHeartbeat').once().callsArgWithAsync(1, {code: "UnknownResourceFault"}, true)
       let activity = new Activity(workflowMock, activityTypeMock, taskMock.object)
+      activity.heartbeatInterval = 10
       let stopCalled = false
       let stopReason: StopReasons | null = null
       let cancelEvent = false

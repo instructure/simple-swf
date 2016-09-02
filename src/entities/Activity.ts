@@ -23,7 +23,7 @@ export class Activity extends EventEmitter {
   id: string
   activityType: ActivityType
   workflowId: string
-  private heartbeatInterval: number
+  heartbeatInterval: number
   private timer: NodeJS.Timer
   // this constructor is not to be called by the user, it gets created
   // when an activity of this type exists
