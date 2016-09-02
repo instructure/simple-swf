@@ -76,7 +76,8 @@ describe('Workflow', () => {
     it('should register the workflow using defaults from config and overrides', (done) => {
       let taskInput = {
         input: {field: 'value'},
-        env: {myEnv: 'env'}
+        env: {myEnv: 'env'},
+        originWorkflow: 'myId'
       }
       let fieldSerializer = sandbox.mockClass<FieldSerializer>(FieldSerializer)
       fieldSerializer.expects('serializeAll').once().withArgs({
