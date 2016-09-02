@@ -45,8 +45,9 @@ export class Workflow {
       workflowId: id,
       input: JSON.stringify({
         input: input,
-        env: env
-      }),
+        env: env,
+        originWorkflow: id
+      } as TaskInput),
       taskStartToCloseTimeout: defaults[taskStartParam!],
       workflowType: {
         name: this.name,

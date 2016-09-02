@@ -54,6 +54,13 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
   setExecutionContext(context: any) {
     this.executionContext = context
   }
+  private buildTaskInput(input: any): string {
+    return JSON.stringify({
+      input: input,
+      env: this.getEnv(),
+      originWorkflow: this.getOriginWorkflow()
+    } as TaskInput)
+  }
   private encodeExecutionContext(cb: {(err: Error | null, s: string)}) {
     if (!this.executionContext) return cb(null, '')
     this.fieldSerializer.serialize(this.executionContext, cb)
@@ -165,10 +172,7 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
   }
   scheduleTask(activityId: string, input: any, activity: ActivityType, opts: ConfigOverride = {}) {
     let maxRetry = opts['maxRetry'] as number || activity.maxRetry
-    let taskInput = JSON.stringify({
-      input: input,
-      env: this.getEnv()
-    })
+    let taskInput = this.buildTaskInput(input)
     this.decisions.push({
       entities: ['activity'],
       overrides: opts,
@@ -199,10 +203,7 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
             name: this.workflow.name,
             version: this.workflow.version
           },
-          input: JSON.stringify({
-            input: input,
-            env: this.getEnv()
-          }),
+          input: this.buildTaskInput(input),
           control: JSON.stringify(this.buildInitialControlDoc(maxRetry))
         }
       }
@@ -290,10 +291,7 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
   }
   continueAsNewWorkflow(overrideInput: string | null = null, opts: ConfigOverride = {}) {
     let params: SWF.ContinueAsNewWorkflowExecutionDecisionAttributes = {
-      input: JSON.stringify({
-        input: overrideInput || this.workflowAttrs.input,
-        env: this.getEnv()
-      }),
+      input: this.buildTaskInput(overrideInput || this.workflowAttrs.input),
       childPolicy: this.workflowAttrs.childPolicy,
       executionStartToCloseTimeout: this.workflowAttrs.executionStartToCloseTimeout,
       lambdaRole: this.workflowAttrs.lambdaRole,
@@ -321,10 +319,7 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
         scheduleLambdaFunctionDecisionAttributes: {
           id: id,
           name: lambdaName,
-          input: JSON.stringify({
-            input: input,
-            env: this.getEnv()
-          })
+          input: this.buildTaskInput(input),
         }
       }
     })
@@ -345,6 +340,9 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
   }
   getEnv(): Object {
     return this.rollup.env || {}
+  }
+  getOriginWorkflow(): string {
+    return this.getWorkflowTaskInput().originWorkflow
   }
 
   // TODO: implement these

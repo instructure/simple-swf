@@ -23,6 +23,7 @@ export interface TaskStatus {
 
 export interface TaskInput {
   env?: Object,
+  originWorkflow: string,
   input: any
 }
 
