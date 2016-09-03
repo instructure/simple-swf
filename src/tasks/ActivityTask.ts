@@ -7,10 +7,12 @@ import { TaskStatus, CodedError, ActivityFailed, ActivityCanceled, TaskInput } f
 export class ActivityTask extends Task<SWF.ActivityTask> {
   fieldSerializer: FieldSerializer
   id: string
-  constructor(workflow: Workflow, rawTask: SWF.ActivityTask) {
+  taskInput: TaskInput
+  constructor(workflow: Workflow, rawTask: SWF.ActivityTask, taskInput: TaskInput) {
     super(workflow, rawTask)
     this.fieldSerializer = workflow.fieldSerializer
     this.id = rawTask.activityId
+    this.taskInput = taskInput
   }
 
   respondSuccess(result: TaskStatus, cb) {
@@ -50,14 +52,6 @@ export class ActivityTask extends Task<SWF.ActivityTask> {
     return this.rawTask.activityType.name
   }
 
-  getInput(cb: {(err: Error | null, input: any, env: Object)}) {
-    this.fieldSerializer.deserialize(this.rawTask.input || null, (err, input) => {
-      if (err) return cb(err, null, {})
-      let sInput = input as TaskInput
-      cb(null, sInput.input, sInput.env || {})
-    })
-  }
-
   sendHeartbeat(status: TaskStatus, cb: {(err: CodedError, success: boolean)}) {
     this.fieldSerializer.serialize(status, (err, encoded) => {
       let params: SWF.RecordActivityTaskHeartbeatInput = {
@@ -69,5 +63,15 @@ export class ActivityTask extends Task<SWF.ActivityTask> {
         cb(err, data.cancelRequested || false)
       })
     })
+  }
+
+  getInput(): any {
+    return this.taskInput.input
+  }
+  getEnv(): Object {
+    return this.taskInput.env || {}
+  }
+  getOriginWorkflow(): string {
+    return this.taskInput.originWorkflow
   }
 }

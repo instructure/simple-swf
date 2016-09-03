@@ -59,9 +59,9 @@ describe('Worker', () => {
       }
 
       let taskObj = sandbox.stubClass<Task<SWF.DecisionTask>>(Task)
-      worker.object.wrapTask = function(wf, data) {
+      worker.object.wrapTask = function(wf, data, cb) {
         taskObj.rawTask = data as SWF.DecisionTask
-        return taskObj
+        cb(null, taskObj)
       }
       worker.object.sendRequest = function(req, cb) {
         cb(undefined, {taskToken: '1234'} as SWF.DecisionTask)

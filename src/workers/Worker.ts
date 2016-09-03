@@ -57,10 +57,19 @@ export abstract class Worker<T extends SWFTask, W extends Task<SWFTask>> extends
       }
       // didn't get any work, poll again
       if (!data || !data.taskToken) return this.loop()
-      let task = this.wrapTask(this.workflow, data)
-      this.emit('task', task)
-      this.performTask(task)
-      this.loop()
+      this.wrapTask(this.workflow, data, (err, task) => {
+        if (err) {
+          console.log('here?')
+          this.emit('error', err)
+          let toContinue = this.handleError(err)
+          if (!toContinue) return
+          return this.loop()
+        }
+        task = task!
+        this.emit('task', task)
+        this.performTask(task)
+        this.loop()
+      })
     })
   }
 
@@ -68,7 +77,7 @@ export abstract class Worker<T extends SWFTask, W extends Task<SWFTask>> extends
     req.send(cb)
   }
 
-  abstract wrapTask(workflow: Workflow, data: T): W
+  abstract wrapTask(workflow: Workflow, data: T, cb: {(err: Error | null, task: W | null)})
   abstract buildApiRequest(): Request<any, any>
   abstract performTask(task: W)
   abstract handleError(err: Error): boolean

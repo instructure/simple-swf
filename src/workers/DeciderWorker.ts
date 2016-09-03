@@ -92,8 +92,8 @@ export class DeciderWorker extends Worker<SWF.DecisionTask, DecisionTask> {
     return false
   }
 
-  wrapTask(workflow: Workflow, task: SWF.DecisionTask): DecisionTask {
-    return new DecisionTask(workflow, task)
+  wrapTask(workflow: Workflow, task: SWF.DecisionTask, cb: {(err: Error | null, task: DecisionTask | null)}) {
+    cb(null, new DecisionTask(workflow, task))
   }
 
   performTask(task: DecisionTask) {

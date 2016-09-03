@@ -51,28 +51,25 @@ export class Activity extends EventEmitter {
   _start(cb: {(err: CodedError, success: boolean, details?: TaskStatus)}) {
     this.startHeartbeat()
     this.taskStatus = TaskState.Started
-    this.task.getInput((err, input, env) => {
-      if (err) return cb(err, false)
-      this.run(input, env, (err, details) => {
-        clearInterval(this.timer)
-        // if a task is canceled before we call to respond, don't respond
-        if (this.taskStatus === TaskState.Canceled) return
+    this.run(this.task.getInput(), this.task.getEnv(), (err, details) => {
+      this.stopHeartbeat()
+      // if a task is canceled before we call to respond, don't respond
+      if (this.taskStatus === TaskState.Canceled) return
 
-        if (err) {
-          this.taskStatus = TaskState.Failed
-          this.emit('failed', err, details)
-          return this.task.respondFailed({error: err, details: details}, (err) => cb(err, false, details))
-        }
+      if (err) {
+        this.taskStatus = TaskState.Failed
+        this.emit('failed', err, details)
+        return this.task.respondFailed({error: err, details: details}, (err) => cb(err, false, details))
+      }
 
-        this.taskStatus = TaskState.Finished
-        this.emit('completed', details)
-        this.task.respondSuccess(details, (err) => cb(err, true, details))
-      })
+      this.taskStatus = TaskState.Finished
+      this.emit('completed', details)
+      this.task.respondSuccess(details, (err) => cb(err, true, details))
     })
   }
   _requestStop(reason: StopReasons, doNotRespond: boolean, cb: {(err?: CodedError)}) {
     this.taskStatus = TaskState.ShouldStop
-    clearInterval(this.timer)
+    this.stopHeartbeat()
     this.stop(reason, (err, details) => {
       if (err) return cb(err)
       if (doNotRespond) {
@@ -114,7 +111,10 @@ export class Activity extends EventEmitter {
 
       })
     // use half the interval to ensure we do it in time!
-  }, (this.heartbeatInterval * 0.5))
+    }, (this.heartbeatInterval * 0.5))
+  }
+  protected stopHeartbeat() {
+    clearInterval(this.timer)
   }
   static getActivityType(): ActivityType {
     throw new Error('this method must be overriden!')

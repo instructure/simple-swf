@@ -13,7 +13,6 @@ export class Workflow {
   swfClient: SWF
   config: SWFConfig
   fieldSerializer: FieldSerializer
-  runInfo: WorkflowInfo
   constructor(domain: Domain, name: string, version: string, fieldSerializer: FieldSerializer) {
     this.domain = domain
     this.name = name
@@ -59,11 +58,11 @@ export class Workflow {
       if (err) return cb(err, null)
       this.swfClient.startWorkflowExecution(encoded, (err, data) => {
         if (err) return cb(err, null)
-        this.runInfo = {
+        const runInfo = {
           workflowId: id,
           runId: data.runId
         }
-        cb(null, this.runInfo)
+        cb(null, runInfo)
       })
     })
   }

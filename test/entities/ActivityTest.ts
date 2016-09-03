@@ -57,18 +57,26 @@ describe('Activity', () => {
     let sandbox = newContext()
     let workflowMock = sandbox.stubClass<Workflow>(Workflow)
     let activityTypeMock = sandbox.stubClass<ActivityType>(ActivityType)
+    let taskInput = {
+      input: {myTask: 'input'},
+      env: {},
+      originWorkflow: 'fake'
+    }
     activityTypeMock.stubMethod('heartbeatTimeout').returns(10)
     it('should work to do a normal task', (done) => {
       let taskMock = sandbox.mockClass<ActivityTask>(ActivityTask)
       taskMock.object.rawTask = {activityId: '1234'} as SWF.ActivityTask
-      taskMock.expects('getInput').once().callsArgWithAsync(0, null, {myTask: 'input'})
+      taskMock.object.taskInput = taskInput
       taskMock.expects('respondSuccess').once().callsArgWithAsync(1, null, true, {status: 'test'})
+      taskMock.expects('respondFailed').never()
       let runCalled = false
       let activity = new Activity(workflowMock, activityTypeMock, taskMock.object)
       activity.heartbeatInterval = 10
       activity.run = function(input: any, env: Object | null, cb) {
         runCalled = true
-        cb(null, {status: 'test'})
+        process.nextTick(() => {
+          cb(null, {status: 'test'})
+        })
       }
       activity._start((err, success, res) => {
         assert.ifError(err)
@@ -83,15 +91,17 @@ describe('Activity', () => {
     })
     it('should respond if a task failed', (done) => {
       let taskMock = sandbox.mockClass<ActivityTask>(ActivityTask)
+      taskMock.object.taskInput = taskInput
       taskMock.object.rawTask = {activityId: '1234'} as SWF.ActivityTask
-      taskMock.expects('getInput').once().callsArgWithAsync(0, null, {myTask: 'input'})
       taskMock.expects('respondSuccess').never()
       taskMock.expects('respondFailed').once().callsArgWithAsync(1, null)
       let runCalled = false
       let activity = new Activity(workflowMock, activityTypeMock, taskMock.object)
       activity.heartbeatInterval = 10
       activity.run = function(input: any, env: Object | null, cb) {
-        cb(new Error('a problem'), {status: 'failed'})
+        process.nextTick(() => {
+          cb(new Error('a problem'), {status: 'failed'})
+        })
       }
       activity._start((err, success, res) => {
         assert.ifError(err)
@@ -106,8 +116,8 @@ describe('Activity', () => {
 
     it('should emit heartbeats for long running tasks', (done) => {
       let taskMock = sandbox.mockClass<ActivityTask>(ActivityTask)
+      taskMock.object.taskInput = taskInput
       taskMock.object.rawTask = {activityId: '1234'} as SWF.ActivityTask
-      taskMock.expects('getInput').once().callsArgWithAsync(0, null, {myTask: 'input'})
       taskMock.expects('respondSuccess').once().callsArgWithAsync(1, null, true, {status: 'test'})
       taskMock.expects('sendHeartbeat').once().callsArgWithAsync(1, null, false)
       let activity = new Activity(workflowMock, activityTypeMock, taskMock.object)
@@ -132,8 +142,8 @@ describe('Activity', () => {
 
     it('should work to have a heartbeat cancel an operation', (done) => {
       let taskMock = sandbox.mockClass<ActivityTask>(ActivityTask)
+      taskMock.object.taskInput = taskInput
       taskMock.object.rawTask = {activityId: '1234'} as SWF.ActivityTask
-      taskMock.expects('getInput').once().callsArgWithAsync(0, null, {myTask: 'input'})
       taskMock.expects('respondCanceled').once().callsArgWithAsync(1, null)
       taskMock.expects('respondSuccess').never()
       taskMock.expects('sendHeartbeat').once().callsArgWithAsync(1, null, true)
@@ -177,7 +187,7 @@ describe('Activity', () => {
     it('should recover from an UnknownResourceFault by cancelling but not reporting the cancel', (done) => {
       let taskMock = sandbox.mockClass<ActivityTask>(ActivityTask)
       taskMock.object.rawTask = {activityId: '1234'} as SWF.ActivityTask
-      taskMock.expects('getInput').once().callsArgWithAsync(0, null, {myTask: 'input'})
+      taskMock.object.taskInput = taskInput
       taskMock.expects('respondCanceled').never()
       taskMock.expects('respondSuccess').never()
       taskMock.expects('sendHeartbeat').once().callsArgWithAsync(1, {code: "UnknownResourceFault"}, true)
@@ -223,11 +233,16 @@ describe('Activity', () => {
     let sandbox = newContext()
     let workflowMock = sandbox.stubClass<Workflow>(Workflow)
     let activityTypeMock = sandbox.stubClass<ActivityType>(ActivityType)
+    let taskInput = {
+      input: {myTask: 'input'},
+      env: {},
+      originWorkflow: 'fake'
+    }
     activityTypeMock.stubMethod('heartbeatTimeout').returns(10)
     it('should work to do a normal task', (done) => {
       let taskMock = sandbox.mockClass<ActivityTask>(ActivityTask)
       taskMock.object.rawTask = {activityId: '1234'} as SWF.ActivityTask
-      taskMock.expects('getInput').once().callsArgWithAsync(0, null, {myTask: 'input'})
+      taskMock.object.taskInput = taskInput
       taskMock.expects('respondSuccess').never()
       taskMock.expects('respondCanceled').once().callsArgWithAsync(1, null)
       let runCalled = false

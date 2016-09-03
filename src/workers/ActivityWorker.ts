@@ -4,10 +4,11 @@ import * as async from 'async'
 
 import { Activity, ActivityType, Workflow } from '../entities'
 import { ActivityTask } from '../tasks'
+import { FieldSerializer } from '../util'
 import { Worker } from './Worker'
 import { buildIdentity } from '../util/buildIdentity'
 import { SWFConfig, ConfigOverride } from '../SWFConfig'
-import { UnknownResourceFault, StopReasons } from '../interfaces'
+import { UnknownResourceFault, StopReasons, TaskInput } from '../interfaces'
 
 export interface ActivityTypeCreated {
   activity: ActivityType,
@@ -20,15 +21,17 @@ export class ActivityWorker extends Worker<SWF.ActivityTask, ActivityTask> {
   opts: ConfigOverride
   activityRegistry: {[name: string]: ActivityType}
   activeActivities: {[activeId: string]: Activity }
+  fieldSerializer: FieldSerializer
   constructor(workflow: Workflow, opts: ConfigOverride = {}) {
     // ensure string from overrides as ConfigOverride allows numbers
     let identity = (opts['identity'] || buildIdentity('activity')).toString()
     super(workflow, identity)
-    this.config = this.workflow.config
+    this.config = workflow.config
+    this.fieldSerializer = workflow.fieldSerializer
     this.opts = opts
     this.activityRegistry = {}
     this.activeActivities = {}
-    this.swfClient = this.workflow.swfClient
+    this.swfClient = workflow.swfClient
   }
 
   buildApiRequest(): Request<any, any> {
@@ -46,8 +49,13 @@ export class ActivityWorker extends Worker<SWF.ActivityTask, ActivityTask> {
     return false
   }
 
-  wrapTask(workflow: Workflow, task: SWF.ActivityTask): ActivityTask {
-    return new ActivityTask(workflow, task)
+  wrapTask(workflow: Workflow, task: SWF.ActivityTask, cb: {(err: Error | null, task: ActivityTask | null)}) {
+    this.fieldSerializer.deserialize(task.input || null, (err, input) => {
+      if (err) return cb(err, null)
+      let sInput = input as TaskInput
+      let actTask = new ActivityTask(workflow, task, sInput)
+      cb(null, actTask)
+    })
   }
 
   performTask(task: ActivityTask) {
