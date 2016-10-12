@@ -5,6 +5,7 @@ import { Domain } from './Domain'
 import { SWFConfig, ConfigGroup, ConfigDefaultUnit, ConfigOverride } from '../SWFConfig'
 import { CodedError, WorkflowInfo, TypeExistsFault, TaskInput } from '../interfaces'
 import { FieldSerializer } from '../util/FieldSerializer'
+import { WorkflowExecution } from './WorkflowExecution'
 
 export class Workflow {
   name: string
@@ -34,7 +35,13 @@ export class Workflow {
       cb(null!, true)
     })
   }
-  startWorkflow(id: string, input: any, env: Object | null, opts: ConfigOverride, cb: {(Error, WorkflowInfo)}) {
+  startWorkflow(
+    id: string,
+    input: any,
+    env: Object | null,
+    opts: ConfigOverride,
+    cb: {(err?: Error | null, wfInfo?: WorkflowInfo | null, exectution?: WorkflowExecution | null)}
+  ) {
     let defaults = this.config.populateDefaults({entities: ['workflow', 'decision'], api: 'startWorkflowExecution'}, opts)
     // TODO: get rid of this hack, currently need it as this API crosses entties, need
     // to take care of in config layer
@@ -55,16 +62,34 @@ export class Workflow {
     }
     let merged = _.defaults(params, defaults)
     this.fieldSerializer.serializeAll<SWF.StartWorkflowExecutionInput>(merged, (err, encoded) => {
-      if (err) return cb(err, null)
+      if (err) return cb(err)
       this.swfClient.startWorkflowExecution(encoded, (err, data) => {
-        if (err) return cb(err, null)
+        if (err) return cb(err)
         const runInfo = {
           workflowId: id,
           runId: data.runId
         }
-        cb(null, runInfo)
+        cb(null, runInfo, new WorkflowExecution(this, runInfo))
       })
     })
+  }
+  buildExecution(workflowId, runId): WorkflowExecution {
+    return new WorkflowExecution(this, {workflowId, runId})
+  }
+  deprecateWorkflowType(cb: {(err?: Error)}) {
+    this.swfClient.deprecateWorkflowType(
+      {domain: this.domain.name,
+      workflowType: {name: this.name, version: this.version}},
+     (err) => {
+      cb(err)
+    })
+  }
+  describeWorkflowType(cb: {(err?: Error | null, data?: any)}) {
+    this.swfClient.describeWorkflowType(
+      {domain: this.domain.name,
+      workflowType: {name: this.name, version: this.version}},
+      cb
+    )
   }
 
   static getDefaultConfig(): ConfigGroup {

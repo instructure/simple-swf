@@ -52,7 +52,7 @@ describe('Workflow', () => {
         .returns({hello: 'world'})
       domain.config = config
       domain.swfClient = swfMock
-      domain.name = 'testDomain'
+      domain.setProp('name', 'testDomain')
       let workflow = new Workflow(domain, 'myworkflow', '1.0.0', fieldSerializer)
       let swfSpy = sandbox.spy(swfMock, 'registerWorkflowType')
       workflow.ensureWorkflow({hello: 'world'}, (err) => {
@@ -122,7 +122,7 @@ describe('Workflow', () => {
       let domain = sandbox.stubClass<Domain>(Domain)
       domain.config = config
       domain.swfClient = swfMock
-      domain.name = 'testDomain'
+      domain.setProp('name', 'testDomain')
       let workflow = new Workflow(domain, 'myworkflow', '1.0.0', fieldSerializer.object)
       let swfSpy = sandbox.spy(swfMock, 'startWorkflowExecution')
       workflow.startWorkflow('myId', taskInput.input, taskInput.env, {hello: 'world'}, (err, workflowInfo) => {

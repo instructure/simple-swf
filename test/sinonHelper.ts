@@ -3,6 +3,7 @@ import * as _ from 'lodash'
 
 export interface ClassStub<T> extends Sinon.SinonStub {
   stubMethod(name: string): Sinon.SinonStub
+  setProp(name: string, val: any)
 }
 export interface ClassMock<T> extends Sinon.SinonMock {
   object: T
@@ -25,6 +26,10 @@ export class SinonHelper implements Sinon.SinonSandbox {
   stubClass<T>(instanceClass: Function): T & ClassStub<T> {
     let stubbed = this.stub(_.clone(instanceClass.prototype)) as T & ClassStub<T>
     if (typeof stubbed.stubMethod === 'function') throw new Error('have function named stubMethod, conflicts!')
+    if (typeof stubbed.setProp === 'function') throw new Error('have function named stubMethod, conflicts!')
+    stubbed.setProp = function(name: string, val: any) {
+      return stubbed[name] = val
+    }
     stubbed.stubMethod = function(name: string): Sinon.SinonStub {
       return stubbed[name] as Sinon.SinonStub
     }

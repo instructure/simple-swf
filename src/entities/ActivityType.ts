@@ -7,19 +7,18 @@ import { Domain } from './Domain'
 import { Workflow } from './Workflow'
 import { ActivityTask } from '../tasks/ActivityTask'
 import { Activity } from './Activity'
+import { ActivityTypeInfo } from './ActivityTypeInfo'
 
-export class ActivityType {
-  name: string
-  version: string
+export class ActivityType extends ActivityTypeInfo {
   HandlerClass: { new(...args: any[]): Activity }
   opts: ConfigOverride
   maxRetry: number
   constructor(name: string, version: string, HandlerClass: { new(...args: any[]): Activity }, opts: ConfigOverride = {}) {
-    this.name = name
-    this.version = version
+    super(name, version)
     this.HandlerClass = HandlerClass
     this.opts = opts
     this.maxRetry = opts['maxRetry'] as number || 5
+    this.domainScope = {}
   }
   ensureActivityType(domain: Domain, cb: {(err: Error | null, success: boolean)}) {
     let defaults = domain.config.populateDefaults({entities: ['activity'], api: 'registerActivityType'}, this.opts)

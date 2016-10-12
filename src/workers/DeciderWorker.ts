@@ -10,6 +10,7 @@ import { EventTypeAttributeMap } from '../util'
 import { SWFConfig, ConfigOverride } from '../SWFConfig'
 import { CodedError } from '../interfaces'
 import { FieldSerializer } from '../util/FieldSerializer'
+import { EventDeserializer } from '../util/EventDeserializer'
 
 // only try to deserialize these events types, since we really only
 // care about the 'result' field to build the env
@@ -19,6 +20,7 @@ const EventsToDeserialize = {
   ActivityTaskCompleted: true,
   ChildWorkflowExecutionCompleted: true,
   LambdaFunctionCompleted: true,
+  WorkflowExecutionSignaled: true
 }
 
 export class DeciderWorker extends Worker<SWF.DecisionTask, DecisionTask> {
@@ -26,7 +28,7 @@ export class DeciderWorker extends Worker<SWF.DecisionTask, DecisionTask> {
   config: SWFConfig
   opts: ConfigOverride
   decider: Decider
-  fieldSerializer: FieldSerializer
+  deserializer: EventDeserializer
   constructor(decider: Decider, opts: ConfigOverride = {}) {
     // ensure string from overrides as ConfigOverride allows numbers
     let identity = (opts['identity'] || buildIdentity('activity')).toString()
@@ -34,8 +36,8 @@ export class DeciderWorker extends Worker<SWF.DecisionTask, DecisionTask> {
     this.decider = decider
     this.config = this.workflow.config
     this.swfClient = this.workflow.swfClient
-    this.fieldSerializer = this.workflow.fieldSerializer
     this.opts = opts
+    this.deserializer = new EventDeserializer(EventsToDeserialize, this.workflow.fieldSerializer)
   }
 
   buildApiRequest(): Request<any, any> {
@@ -65,26 +67,19 @@ export class DeciderWorker extends Worker<SWF.DecisionTask, DecisionTask> {
         return cb(null!, decisionTask!)
       }
       if (!decisionTask) decisionTask = data
-      async.map<SWF.HistoryEvent, SWF.HistoryEvent>(data.events, this.deserializeEvent.bind(this), (err, desEvents) => {
-        if (err) {
-          cb(err)
-          cbCalled = true
-          // return false to stop pagination
-          return false
-        }
-        events.push(...desEvents)
-        done()
+      async.map<SWF.HistoryEvent, SWF.HistoryEvent>(
+        data.events,
+        this.deserializer.deserializeEvent.bind(this),
+        (err, desEvents) => {
+          if (err) {
+            cb(err)
+            cbCalled = true
+            // return false to stop pagination
+            return false
+          }
+          events.push(...desEvents)
+          done()
       })
-    })
-  }
-  deserializeEvent(event: SWF.HistoryEvent, cb: {(err: Error | null, e: SWF.HistoryEvent | null)}) {
-    if (!EventsToDeserialize[event.eventType]) return process.nextTick(() => cb(null, event))
-    const attrName = EventTypeAttributeMap[event.eventType]
-    if (!attrName) return cb(new Error('cannot find attributes for event ' + event.eventType), null)
-    this.fieldSerializer.deserializeAll(event[attrName], (err, des) => {
-      if (err) return cb(err, null)
-      event[attrName] = des
-      cb(null, event)
     })
   }
 

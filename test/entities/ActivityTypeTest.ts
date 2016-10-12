@@ -58,7 +58,7 @@ describe('ActivityType', () => {
   describe('ensureActivityType', () => {
     let sandbox = newContext()
     let domain = sandbox.stubClass<Domain>(Domain)
-    domain.name = 'mydomain'
+    domain.setProp('name', 'mydomain')
 
     it('should register the activity using defaults from config and overrides', (done) => {
       let activityType = new ActivityType('testAct', '1.0.0', FakeActivity, {hello: 'world'})

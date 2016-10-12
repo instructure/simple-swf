@@ -12,7 +12,7 @@ describe('Activity', () => {
     let workflowMock = sandbox.stubClass<Workflow>(Workflow)
     let activityTypeMock = sandbox.stubClass<ActivityType>(ActivityType)
     activityTypeMock.stubMethod('heartbeatTimeout').returns(10)
-    activityTypeMock.name = 'foo'
+    activityTypeMock.setProp('name', 'foo')
     let activity = new Activity(workflowMock, activityTypeMock, {rawTask: {activityId: '1234'}} as ActivityTask)
     it('should populate correct fields on instance new instace', () => {
       it('should throw an error on default implementation', () => {

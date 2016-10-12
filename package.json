@@ -1,6 +1,6 @@
 {
   "name": "simple-swf",
-  "version": "0.0.6",
+  "version": "0.1.0-beta",
   "description": "Actually simple API layer for AWS SWF",
   "main": "index.js",
   "scripts": {
@@ -12,7 +12,7 @@
     "build-full": "npm run clean && npm run typings && tsc",
     "build": "tsc",
     "typings": "npm run typings-clean && typings install",
-    "typings-clean": "rm -rf src/typings",
+    "typings-clean": "rm -rf typings",
     "prepublish": "npm run build-full",
     "coverage": "npm run build && istanbul cover _mocha --  build/test/*Test.js build/test/**/*Test.js"
   },
@@ -38,6 +38,7 @@
     "aws-sdk": "^2.3.3",
     "in-publish": "^2.0.0",
     "lodash": "^4.10.0",
+    "object-assign": "^4.1.0",
     "shortid": "^2.2.6"
   }
 }
