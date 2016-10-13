@@ -1,4 +1,4 @@
-import * as sinon from 'sinon'
+import * as Sinon from 'sinon'
 import * as _ from 'lodash'
 
 export interface ClassStub<T> extends Sinon.SinonStub {
@@ -55,7 +55,7 @@ export class SinonHelper implements Sinon.SinonSandbox {
 }
 
 function newContext(): SinonHelper {
-  let sandbox = sinon.sandbox.create()
+  let sandbox = Sinon.sandbox.create()
   let helper = new SinonHelper
   helper = _.extend(helper, sandbox) as SinonHelper
 
