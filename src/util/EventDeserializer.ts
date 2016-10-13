@@ -15,6 +15,7 @@ export class EventDeserializer {
       this.eventsToDeserialize = {}
       this.deserializeAll = true
     }
+    this.eventsToDeserialize = this.eventsToDeserialize || {}
     this.fieldSerializer = fieldSerializer
   }
 

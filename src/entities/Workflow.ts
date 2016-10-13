@@ -91,6 +91,16 @@ export class Workflow {
       cb
     )
   }
+  toJSON(): Object {
+    return {
+      domain: this.domain.name,
+      workflowType: {
+        name: this.name,
+        version: this.version
+      }
+    }
+  }
+
 
   static getDefaultConfig(): ConfigGroup {
     return {

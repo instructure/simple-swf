@@ -151,6 +151,13 @@ export class Domain {
   describeDomain(cb: {(err?: Error, data?: any)}) {
     this.swfClient.describeDomain({name: this.name}, cb)
   }
+  toJSON(): Object {
+    return {
+      domain: this.name,
+      status: this.status,
+      description: this.description
+    }
+  }
 
   static loadDomain(config: SWFConfig, swfClient: SWF, name: string) {
     return new Domain(name, config, swfClient)
@@ -158,10 +165,10 @@ export class Domain {
   static listDomains(
     config: SWFConfig,
     swfClient: SWF,
-    regStatus: string = 'REGISTERED',
+    regStatus: SWF.RegistrationStatus,
     cb: {(err?: Error, domains?: Domain[])}
   ) {
-    const boundLoad = Domain.bind(Domain, config, swfClient)
+    const boundLoad = Domain.loadDomain.bind(Domain, config, swfClient)
     let domains: Domain[] = []
     swfClient.listDomains({registrationStatus: regStatus}).eachPage((err, data) => {
       if (err) return cb(err)

@@ -27,4 +27,13 @@ export class ActivityTypeInfo {
       cb
     )
   }
+  toJSON(): Object {
+    return {
+      activityType: {
+        name: this.name,
+        version: this.version
+      },
+      domainScopes: this.domainScope
+    }
+  }
 }

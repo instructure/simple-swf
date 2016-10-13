@@ -78,7 +78,7 @@ export class WorkflowExecution {
       }
       async.map<SWF.HistoryEvent, SWF.HistoryEvent>(
         data.events,
-        this.deserializer.deserializeEvent.bind(this),
+        this.deserializer.deserializeEvent.bind(this.deserializer),
         (err, newEvents) => {
           if (err) return cb(err)
           events = events.concat(newEvents)
@@ -87,6 +87,19 @@ export class WorkflowExecution {
         }
       )
     })
+  }
+  toJSON(): Object {
+    return {
+      execution: this.runInfo,
+      status: this.executionStatus,
+      startTimestamp: this.startTimestamp,
+      cancelRequested: this.cancelRequested,
+      domain: this.workflow.domain.name,
+      workflowType: {
+        name: this.workflow.name,
+        version: this.workflow.version
+      }
+    }
   }
 
 }

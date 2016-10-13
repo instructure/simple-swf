@@ -69,7 +69,7 @@ export class DeciderWorker extends Worker<SWF.DecisionTask, DecisionTask> {
       if (!decisionTask) decisionTask = data
       async.map<SWF.HistoryEvent, SWF.HistoryEvent>(
         data.events,
-        this.deserializer.deserializeEvent.bind(this),
+        this.deserializer.deserializeEvent.bind(this.deserializer),
         (err, desEvents) => {
           if (err) {
             cb(err)
