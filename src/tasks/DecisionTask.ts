@@ -98,7 +98,7 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
     return this.rawTask.events[0].workflowExecutionStartedEventAttributes!.parentWorkflowExecution || null
   }
   isChildWorkflow(): boolean {
-    return this.getParentWorkflowInfo != null
+    return this.getParentWorkflowInfo() !== null
   }
   rescheduleTimedOutEvents(): Event[] {
     let timedOut = this.rollup.getTimedOutEvents()
