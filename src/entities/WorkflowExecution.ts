@@ -2,7 +2,7 @@ import { SWF } from 'aws-sdk'
 import * as async from 'async'
 
 import {Workflow} from './Workflow'
-import {WorkflowInfo} from '../interfaces'
+import {WorkflowInfo, TaskInput} from '../interfaces'
 import {ListFilter} from './Domain'
 import {EventData} from '../tasks/EventRollup'
 import {processEvents} from '../tasks/processEvents'
@@ -11,7 +11,7 @@ const objectAssign = require('object-assign')
 
 export interface ExecutionHistory {
   progress: EventData,
-  wfInput: any
+  wfInput: TaskInput
 }
 
 export class WorkflowExecution {
