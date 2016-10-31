@@ -71,9 +71,12 @@ export class WorkflowExecution {
       if (err) return cb(err)
       if (!data) {
         if (events[0].eventType !== 'WorkflowExecutionStarted') return cb(new Error('unexpected workflow state'))
+        // this is slightly hacky, when we cann deserializeEvent it changes this from strings
+        // to hydrated objects
+        const input = events[0]!.workflowExecutionStartedEventAttributes!.input as any
         return cb(null, {
           progress: processEvents(events),
-          wfInput: events[0]!.workflowExecutionStartedEventAttributes!.input
+          wfInput: input as TaskInput
         })
       }
       async.map<SWF.HistoryEvent, SWF.HistoryEvent>(
