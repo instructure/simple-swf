@@ -28,10 +28,12 @@ export class ActivityTask extends Task<SWF.ActivityTask> {
   respondFailed(result: ActivityFailed, cb) {
     this.fieldSerializer.serialize(result.details, (err, encoded) => {
       if (err) return cb(err)
+      const resErr = result.error || {}
+      const errMessage = resErr.message || ""
       let params: SWF.RespondActivityTaskFailedInput = {
         taskToken: this.rawTask.taskToken,
         // small guard to make sure this never gets too crazy...
-        reason: result.error.message.slice(0, 100),
+        reason: errMessage.slice(0, 100),
         details: encoded
       }
       this.swfClient.respondActivityTaskFailed(params, cb)
