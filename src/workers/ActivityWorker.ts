@@ -77,7 +77,7 @@ export class ActivityWorker extends Worker<SWF.ActivityTask, ActivityTask> {
   }
 
   stop(cb: {(err?: Error)}) {
-    async.forEachOf(this.activeActivities, (execution: Activity, keyName, cb) => {
+    async.forEachOf(this.activeActivities, (execution: Activity, keyName, cb: {(err?: Error | null)}) => {
       delete this.activeActivities[keyName]
       execution._requestStop(StopReasons.ProcessExit, false, cb)
     }, (err) => {
@@ -92,7 +92,7 @@ export class ActivityWorker extends Worker<SWF.ActivityTask, ActivityTask> {
     let activities = _.values<ActivityType>(this.activityRegistry)
     async.map(
       activities,
-      (act, cb: {(err?: Error, s?: boolean)}) => act.ensureActivityType(this.workflow.domain, cb),
+      (act, cb: {(err?: Error | null, s?: boolean)}) => act.ensureActivityType(this.workflow.domain, cb),
       (err, results) => {
       if (err) return cb(err)
       const withCreated = activities.map((act, index) => ({activity: act, created: results[index] as boolean}))

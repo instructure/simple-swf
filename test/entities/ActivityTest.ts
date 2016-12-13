@@ -72,7 +72,7 @@ describe('Activity', () => {
       let runCalled = false
       let activity = new Activity(workflowMock, activityTypeMock, taskMock.object)
       activity.heartbeatInterval = 10
-      activity.run = function(input: any, env: Object | null, cb) {
+      activity.run = function(input: any, env: Object | null, cb: {(err: Error | null, o: any)}) {
         runCalled = true
         process.nextTick(() => {
           cb(null, {status: 'test'})
@@ -124,7 +124,7 @@ describe('Activity', () => {
       activity.heartbeatInterval = 10
       let gotHeartbeat = false
       let finHeartbeat = false
-      activity.run = function(input: any, env: Object | null, cb) {
+      activity.run = function(input: any, env: Object | null, cb: {(err: Error | null, o: any)}) {
         setTimeout(() => {
           cb(null, {status: 'test'})
         }, 6)
@@ -152,7 +152,7 @@ describe('Activity', () => {
       let stopCalled = false
       let stopReason: StopReasons | null = null
       let cancelEvent = false
-      activity.stop = function(reason: StopReasons, cb) {
+      activity.stop = function(reason: StopReasons, cb: {()}) {
         stopCalled = true
         stopReason = reason
         setTimeout(() => {
@@ -161,7 +161,7 @@ describe('Activity', () => {
       }
       let didFinish = false
       let runTimeout: NodeJS.Timer | null = null
-      activity.run = function(input: any, env: Object | null, cb) {
+      activity.run = function(input: any, env: Object | null, cb: {(err: Error | null, o: any)}) {
         runTimeout = setTimeout(() => {
           didFinish = true
           cb(null, {status: 'test'})
@@ -196,7 +196,7 @@ describe('Activity', () => {
       let stopCalled = false
       let stopReason: StopReasons | null = null
       let cancelEvent = false
-      activity.stop = function(reason: StopReasons, cb) {
+      activity.stop = function(reason: StopReasons, cb: {()}) {
         stopCalled = true
         stopReason = reason
         setTimeout(() => {
@@ -205,7 +205,7 @@ describe('Activity', () => {
       }
       let didFinish = false
       let runTimeout: NodeJS.Timer | null = null
-      activity.run = function(input: any, env: Object | null, cb) {
+      activity.run = function(input: any, env: Object | null, cb: {(err: Error | null, o: any)}) {
         runTimeout = setTimeout(() => {
           didFinish = true
           cb(null, {status: 'test'})
@@ -247,7 +247,7 @@ describe('Activity', () => {
       taskMock.expects('respondCanceled').once().callsArgWithAsync(1, null)
       let runCalled = false
       let activity = new Activity(workflowMock, activityTypeMock, taskMock.object)
-      activity.run = function(input: any, cb) {
+      activity.run = function(input: any, cb: {(err: Error | null, o: any)}) {
         setTimeout(() => {
           cb(null, {status: 'test'})
         }, 100)
@@ -257,7 +257,7 @@ describe('Activity', () => {
         assert(false)
       })
       let stopCalled = false
-      activity.stop = function(reason: StopReasons, cb) {
+      activity.stop = function(reason: StopReasons, cb: {()}) {
         stopCalled = true
         setTimeout(() => {
           cb()

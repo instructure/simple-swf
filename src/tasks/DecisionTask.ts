@@ -65,8 +65,8 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
     if (!this.executionContext) return cb(null, '')
     this.fieldSerializer.serialize(this.executionContext, cb)
   }
-  private wrapDecisions(decisions: Decision[], cb: {(Error, dec: SWF.Decision[])}) {
-    async.map(decisions, (decision: Decision, cb) => {
+  private wrapDecisions(decisions: Decision[], cb: {(err: Error | null, dec: SWF.Decision[])}) {
+    async.map(decisions, (decision: Decision, cb: {(err: Error | null, d?: SWF.Decision)}) => {
       let swfDec = decision.decision
       let attrName = DecisionTypeAttributeMap[swfDec.decisionType]
       let swfAttrs = swfDec[attrName]
