@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "pretest": "npm run build",
-    "test": "nyc mocha --require source-map-support/register build/test/*Test.js build/test/**/*Test.js && npm run lint",
+    "test": "nyc --all mocha --require source-map-support/register build/test/*Test.js build/test/**/*Test.js && npm run lint",
     "upload_cov": "nyc report --reporter=json && codecov -f coverage/*.json",
     "testSingle": "./testSingle.sh",
     "lint": "tslint src/*.ts src/**/*.ts",
@@ -15,6 +15,13 @@
     "typings": "npm run typings-clean && typings install",
     "typings-clean": "rm -rf typings",
     "prepublish": "npm run build-full"
+  },
+  "nyc": {
+    "include": [
+      "build/src/*.js",
+      "build/src/**/*.js",
+      "build/src/**/**/*.js"
+    ]
   },
   "keywords": [
     "aws",
