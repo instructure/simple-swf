@@ -85,6 +85,7 @@ export class ActivityType extends ActivityTypeInfo {
         description: 'Specifies the taskList name for a specific activity or filters by taskList, see SWF docs for more stails',
         mappings: [
           {api: 'registerActivityType', name: 'defaultTaskList'},
+          {api: 'respondDecisionTaskCompleted', attribute: 'scheduleActivityTaskDecisionAttributes', name: 'taskList'},
           {api: 'respondDecisionTaskCompleted', attribute: 'startChildWorkflowExecutionDecisionAttributes', name: 'taskList'},
           {api: 'pollForActivityTask', name: 'taskList'}
         ],
