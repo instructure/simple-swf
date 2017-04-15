@@ -305,7 +305,7 @@ export function processEvents(events) {
       } else {
         oldEvent = grouped[transition.from] || {}
       }
-      grouped[transition.to] = _.merge(oldEvent, event)
+      grouped[transition.to] = _.merge(_.clone(oldEvent), event)
       // allow the transitions to transform the state to add other properties we may want
       if (transition.transform) {
         transition.transform(grouped, event)
