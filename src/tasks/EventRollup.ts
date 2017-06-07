@@ -56,6 +56,40 @@ export class EventRollup {
       workflow: _.filter(this.data.workflow || [], {current: 'failed'})
     }
   }
+  getRetryableFailedToScheduleEvents(): SelectedEvents | false {
+    const activity = _.filter(this.data.activity || [], (event) => {
+      if (event.current !== 'failedToSchedule') {
+        return false
+      } else {
+        const retryableCauses = [
+          'OPEN_ACTIVITIES_LIMIT_EXCEEDED',
+          'ACTIVITY_CREATION_RATE_EXCEEDED'
+        ]
+
+        return retryableCauses.indexOf(event.failedToSchedule.scheduleActivityTaskFailedEventAttributes.cause) > -1
+      }
+    })
+
+    const workflow = _.filter(this.data.workflow || [], (event) => {
+      if (event.current !== 'failedToSchedule') {
+        return false
+      } else {
+        const retryableCauses = [
+          'OPEN_WORKFLOWS_LIMIT_EXCEEDED',
+          'OPEN_CHILDREN_LIMIT_EXCEEDED',
+          'CHILD_CREATION_RATE_EXCEEDED'
+        ]
+
+        return retryableCauses.indexOf(event.failedToSchedule.startChildWorkflowExecutionFailedEventAttributes.cause) > -1
+      }
+    })
+
+    if (!activity.length && !workflow.length) {
+      return false
+    }
+
+    return {activity, workflow}
+  }
   buildEnv(currentEnv: Object, completed?: any[]): Object {
     if (!completed) return currentEnv
     for (let event of completed) {

@@ -7,7 +7,7 @@ import { Workflow } from '../entities/Workflow'
 import { ActivityType } from '../entities/ActivityType'
 import { FieldSerializer } from '../util/FieldSerializer'
 import { CodedError, EntityTypes, TaskInput, TaskStatus } from '../interfaces'
-import { EventRollup, Event, EventData } from './EventRollup'
+import { EventRollup, Event, EventData, SelectedEvents } from './EventRollup'
 import { ConfigOverride } from '../SWFConfig'
 import { DecisionTypeAttributeMap } from '../util'
 
@@ -337,6 +337,9 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
   }
   getGroupedEvents(): EventData {
     return this.rollup.data
+  }
+  getRetryableFailedToScheduleEvents(): SelectedEvents | false {
+    return this.rollup.getRetryableFailedToScheduleEvents()
   }
   getEnv(): Object {
     return this.rollup.env || {}
