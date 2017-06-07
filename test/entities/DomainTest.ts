@@ -56,7 +56,7 @@ describe('Domain', () => {
         assert.ifError(err)
         assert.equal(swfSpy.callCount, 1)
         configMock.verify()
-        assert.deepEqual(domainParams, {
+        assert.deepEqual(domainParams as any, {
           name: 'test',
           workflowExecutionRetentionPeriodInDays: 24
         })

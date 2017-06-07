@@ -90,7 +90,7 @@ describe('ActivityType', () => {
         assert.ifError(err)
         assert.equal(swfSpy.callCount, 1)
         configMock.verify()
-        assert.deepEqual(inputParams, {
+        assert.deepEqual(inputParams as any, {
           domain: 'mydomain',
           foobar: 'stuff',
           hello: 'world',

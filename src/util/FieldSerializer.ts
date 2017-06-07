@@ -1,4 +1,5 @@
 import * as async from 'async'
+import * as lru from 'lru-cache'
 
 import { ConfigOverride } from '../SWFConfig'
 import { ClaimCheck } from './ClaimCheck'
@@ -6,6 +7,8 @@ import { ClaimCheck } from './ClaimCheck'
 // we can go to about 32k, but we cap it quite a bit smaller for reasons...
 const DefaultLenLim = 10000
 export const DefaultFields = ['input', 'control', 'reason', 'details', 'result']
+
+const DefaultCacheLim = 100
 
 /**
  * we want to be able to pass around JSON objects but SWF
@@ -17,10 +20,12 @@ export class FieldSerializer {
   fields: string[]
   claimChecker: ClaimCheck
   maxLength: number
+  private cache: lru.Cache<any>
   constructor(claimChecker: ClaimCheck, fields: string[] = DefaultFields, opts: ConfigOverride = {}) {
     this.fields = fields
     this.claimChecker = claimChecker
     this.maxLength = opts['maxLength'] as number || DefaultLenLim
+    this.cache = lru<any>({max: opts['maxCacheItems'] as number || DefaultCacheLim})
   }
   serializeAll<T>(input: any, cb: {(Error?, T?)}) {
     if (typeof input !== 'object') return this.serialize(input, cb)
@@ -77,6 +82,8 @@ export class FieldSerializer {
       return cb(null, parsed as T)
     }
     if (!this.claimChecker.isClaimCheck(parsed)) return cb(null, parsed as T)
+    const cacheKey = parsed.key
+    if (this.isCached(cacheKey)) return cb(null, this.getFromCache<T>(cacheKey) as T)
     this.claimChecker.retriveCheck(parsed, (err, res) => {
       if (err) return cb(err, null)
       let parsed: T | string
@@ -85,10 +92,19 @@ export class FieldSerializer {
       } catch (e) {
         parsed = res
       }
+      this.saveToCache<T>(cacheKey, parsed! as T)
       cb(null, parsed! as T)
     })
   }
-
+  isCached(key: string): boolean {
+    return this.cache.has(key)
+  }
+  getFromCache<T>(key: string): T | null {
+    return this.cache.get(key)
+  }
+  saveToCache<T>(key: string, val: T) {
+    this.cache.set(key, val)
+  }
   private tooLong(field: string) {
     return field.length > this.maxLength
   }

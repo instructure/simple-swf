@@ -59,7 +59,7 @@ describe('Workflow', () => {
         assert.ifError(err)
         assert.equal(swfSpy.callCount, 1)
         configMock.verify()
-        assert.deepEqual(wfParams, {
+        assert.deepEqual(wfParams as any, {
           domain: 'testDomain',
           name: 'myworkflow',
           version: '1.0.0',
@@ -129,7 +129,7 @@ describe('Workflow', () => {
         assert.ifError(err)
         assert.equal(swfSpy.callCount, 1)
         configMock.verify()
-        assert.deepEqual(wfParams, {
+        assert.deepEqual(wfParams as any, {
           domain: 'testDomain',
           workflowId: 'myId',
           input: JSON.stringify(taskInput),

@@ -141,6 +141,16 @@ describe('FieldSerializer', () => {
   describe('deserialize', () => {
     let checker = new MockClaimCheck()
     let serializer = new FieldSerializer(checker, ['foo', 'bar'], {maxLength: 10})
+    interface ACheckTest {
+      isAClaimCheck: boolean
+    }
+    let input: ACheckTest = {
+      isAClaimCheck: true
+    }
+    let cc: CheckFormat = {
+      _claimCheck: true,
+      key: 'isACheck'
+    }
 
     it('should handle nulls', (done) => {
       serializer.deserialize<any>(null, (err, output) => {
@@ -163,20 +173,20 @@ describe('FieldSerializer', () => {
       })
     })
     it('should handle a claim check and hydrate it', (done) => {
-      interface ACheckTest {
-        isAClaimCheck: boolean
-      }
-      let input: ACheckTest = {
-        isAClaimCheck: true
-      }
-      let cc: CheckFormat = {
-        _claimCheck: true,
-        key: 'isACheck'
-      }
       checker.db[cc.key] = JSON.stringify(input)
       serializer.deserialize<ACheckTest>(JSON.stringify(cc), (err, output) => {
         assert.ifError(err)
         assert.deepEqual(output, input)
+        assert(serializer.isCached(cc.key))
+        done()
+      })
+    })
+    it('should retrieve from the cache if we already grabbed it', (done) => {
+      checker.db[cc.key] = '{}'
+      serializer.deserialize<ACheckTest>(JSON.stringify(cc), (err, output) => {
+        assert.ifError(err)
+        assert.deepEqual(output, input)
+        assert(serializer.isCached(cc.key))
         done()
       })
     })
