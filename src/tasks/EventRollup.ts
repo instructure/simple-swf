@@ -56,7 +56,7 @@ export class EventRollup {
       workflow: _.filter(this.data.workflow || [], {current: 'failed'})
     }
   }
-  getRetryableFailedToScheduleEvents(): SelectedEvents | false {
+  getRetryableFailedToScheduleEvents(): SelectedEvents {
     const activity = _.filter(this.data.activity || [], (event) => {
       if (event.current !== 'failedToSchedule') {
         return false
@@ -83,10 +83,6 @@ export class EventRollup {
         return retryableCauses.indexOf(event.failedToSchedule.startChildWorkflowExecutionFailedEventAttributes.cause) > -1
       }
     })
-
-    if (!activity.length && !workflow.length) {
-      return false
-    }
 
     return {activity, workflow}
   }

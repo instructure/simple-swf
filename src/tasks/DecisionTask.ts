@@ -129,6 +129,20 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
     )
     return actFailRe.concat(workFailRe)
   }
+  rescheduleFailedToSchedule(): Event[] {
+    let failed = this.rollup.getRetryableFailedToScheduleEvents()
+    let actFailRe = this.rescheduleOfType<SWFScheduleTask>(
+      failed.activity,
+      'activityTaskScheduledEventAttributes',
+      this.rescheduleTask.bind(this)
+    )
+    let workFailRe = this.rescheduleOfType<SWFScheduleChild>(
+      failed.workflow,
+      'startChildWorkflowExecutionInitiatedEventAttributes',
+      this.rescheduleChild.bind(this)
+    )
+    return actFailRe.concat(workFailRe)
+  }
   private rescheduleOfType<T>(toReschedule: Event[], attrName: string, addFunc: {(T): boolean}): Event[] {
     let failedReschedule: Event[] = []
     for (let task of toReschedule) {
