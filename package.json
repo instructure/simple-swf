@@ -1,6 +1,6 @@
 {
   "name": "simple-swf",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "Actually simple API layer for AWS SWF",
   "main": "index.js",
   "scripts": {
@@ -31,7 +31,7 @@
   "author": "addisonj",
   "license": "MIT",
   "devDependencies": {
-		"@types/async": "2.0.32",
+    "@types/async": "2.0.32",
     "@types/chai": "3.4.34",
     "@types/es6-promise": "0.0.32",
     "@types/lodash": "4.14.37",

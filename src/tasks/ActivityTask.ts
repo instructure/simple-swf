@@ -73,6 +73,9 @@ export class ActivityTask extends Task<SWF.ActivityTask> {
   getEnv(): Object {
     return this.taskInput.env || {}
   }
+  getControl(): any {
+    return this.taskInput.control || {}
+  }
   getOriginWorkflow(): string {
     return this.taskInput.originWorkflow
   }

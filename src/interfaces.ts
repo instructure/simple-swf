@@ -24,7 +24,8 @@ export interface TaskStatus {
 export interface TaskInput {
   env?: Object,
   originWorkflow: string,
-  input: any
+  input: any,
+  control?: any
 }
 
 export interface ActivityFailed {

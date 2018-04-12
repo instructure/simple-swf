@@ -40,6 +40,7 @@ export class ActivityWorker extends Worker<SWF.ActivityTask, ActivityTask> {
     let taskList = defaults[taskListKey!]
     let params: SWF.PollForActivityTaskInput = {
       domain: this.workflow.domain.name,
+      identity: this.identity,
       taskList: taskList
     }
     return this.swfClient.pollForActivityTask(_.defaults<SWF.PollForActivityTaskInput>(params, defaults))

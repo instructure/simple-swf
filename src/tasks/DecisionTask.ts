@@ -54,11 +54,12 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
   setExecutionContext(context: any) {
     this.executionContext = context
   }
-  private buildTaskInput(input: any, overrideEnv?: any): string {
+  private buildTaskInput(input: any, overrideEnv?: any, control?: any): string {
     return JSON.stringify({
       input: input,
       env: overrideEnv || this.getEnv(),
-      originWorkflow: this.getOriginWorkflow()
+      originWorkflow: this.getOriginWorkflow(),
+      control: control
     } as TaskInput)
   }
   private encodeExecutionContext(cb: {(err: Error | null, s: string)}) {
@@ -159,6 +160,10 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
     let control = this.getControlDoc(taskAttrs.control)
     if (control.executionCount > control.maxRetry) return false
     taskAttrs.control = JSON.stringify(control)
+    // This is how we communicate updated control info up to the workers, via the input.control
+    let input = JSON.parse(taskAttrs.input || '{}')
+    input.control = control
+    taskAttrs.input = JSON.stringify(input)
     this.decisions.push({
       entities: ['activity'],
       overrides: {},
@@ -174,6 +179,10 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
     let control = this.getControlDoc(childAttrs.control)
     if (control.executionCount > control.maxRetry) return false
     childAttrs.control = JSON.stringify(control)
+    // This is how we communicate updated control info up to the workers, via the input.control
+    let input = JSON.parse(childAttrs.input || '{}')
+    input.control = control
+    childAttrs.input = JSON.stringify(input)
     this.decisions.push({
       entities: ['workflow'],
       overrides: {},
@@ -186,7 +195,8 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
   }
   scheduleTask(activityId: string, input: any, activity: ActivityType, opts: ConfigOverride = {}, overrideEnv?: any) {
     let maxRetry = opts['maxRetry'] as number || activity.maxRetry
-    let taskInput = this.buildTaskInput(input, overrideEnv)
+    let control = this.buildInitialControlDoc(maxRetry)
+    let taskInput = this.buildTaskInput(input, overrideEnv, control)
     this.decisions.push({
       entities: ['activity'],
       overrides: opts,
@@ -199,13 +209,15 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
             name: activity.name,
             version: activity.version
           },
-          control: JSON.stringify(this.buildInitialControlDoc(maxRetry))
+          control: JSON.stringify(control)
         }
       }
     })
   }
   startChildWorkflow(workflowId: string, input: any, opts: ConfigOverride = {}, overrideEnv?: any) {
     let maxRetry = opts['maxRetry'] as number
+    let control = this.buildInitialControlDoc(maxRetry)
+    let taskInput = this.buildTaskInput(input, overrideEnv, control)
     this.decisions.push({
       entities: ['workflow', 'decision'],
       overrides: opts,
@@ -217,8 +229,8 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
             name: this.workflow.name,
             version: this.workflow.version
           },
-          input: this.buildTaskInput(input, overrideEnv),
-          control: JSON.stringify(this.buildInitialControlDoc(maxRetry))
+          input: taskInput,
+          control: JSON.stringify(control)
         }
       }
     })
@@ -325,6 +337,9 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
     })
   }
   scheduleLambda(lambdaName: string, id: string, input: any, opts: ConfigOverride = {}, overrideEnv?: any) {
+    let maxRetry = opts['maxRetry'] as number
+    let control = this.buildInitialControlDoc(maxRetry)
+    let taskInput = this.buildTaskInput(input, overrideEnv, control)
     this.decisions.push({
       entities: ['activity'],
       overrides: opts,
@@ -333,7 +348,7 @@ export class DecisionTask extends Task<SWF.DecisionTask> {
         scheduleLambdaFunctionDecisionAttributes: {
           id: id,
           name: lambdaName,
-          input: this.buildTaskInput(input, overrideEnv),
+          input: taskInput
         }
       }
     })
